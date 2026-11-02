@@ -1,0 +1,363 @@
+// Money is always stored as integer poisha (100 poisha = 1 tk).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  ADMIN
+  HOTEL_OWNER
+}
+
+enum StockState {
+  NONE
+  AVAILABLE
+  AT_HOTEL
+  WASHING
+  WRITTEN_OFF
+}
+
+enum MovementType {
+  STOCK_IN
+  SEND
+  SEND_VOID
+  RETURN
+  WASHED
+  LOST
+  DAMAGED
+}
+
+enum DiscountType {
+  NONE
+  PERCENT
+  FLAT
+}
+
+enum LedgerType {
+  CHARGE
+  PAYMENT
+  ADJUSTMENT
+}
+
+enum PaymentMethod {
+  CASH
+  BANK
+  EMPLOYEE
+}
+
+enum RecordStatus {
+  ACTIVE
+  VOIDED
+}
+
+enum ServiceStatus {
+  RECEIVED
+  WASHED
+  DELIVERED
+  CANCELLED
+}
+
+// ---------- Users and auth ----------
+
+model User {
+  id                 String    @id @default(cuid())
+  email              String    @unique
+  name               String
+  passwordHash       String
+  role               Role
+  isActive           Boolean   @default(true)
+  mustChangePassword Boolean   @default(false)
+  failedLoginCount   Int       @default(0)
+  lockedUntil        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  sessions  Session[]
+  customer  Customer?
+  auditLogs AuditLog[]
+}
+
+model Session {
+  // sha256 of the random token stored in the cookie
+  id        String   @id
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  before    Json?
+  after     Json?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+}
+
+// ---------- Catalog and stock ----------
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  createdAt DateTime  @default(now())
+  products  Product[]
+}
+
+model Product {
+  id         String   @id @default(cuid())
+  categoryId String
+  name       String
+  basePrice  Int
+  photoPath  String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  category       Category        @relation(fields: [categoryId], references: [id])
+  hotelPrices    HotelPrice[]
+  stockMovements StockMovement[]
+  sendLines      SendLine[]
+
+  @@unique([categoryId, name])
+}
+
+model StockMovement {
+  id          String       @id @default(cuid())
+  productId   String
+  hotelId     String?
+  type        MovementType
+  fromState   StockState
+  toState     StockState
+  quantity    Int
+  // groups the rows created by one action (one return, one send, ...)
+  batchId     String
+  sendId      String?
+  note        String?
+  createdById String
+  createdAt   DateTime     @default(now())
+
+  product Product @relation(fields: [productId], references: [id])
+  hotel   Hotel?  @relation(fields: [hotelId], references: [id])
+  send    Send?   @relation(fields: [sendId], references: [id])
+
+  @@index([productId, hotelId])
+  @@index([hotelId, createdAt])
+  @@index([batchId])
+}
+
+// ---------- Customers and hotels ----------
+
+model Customer {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  phone     String
+  address   String?
+  photoPath String?
+  createdAt DateTime @default(now())
+
+  user   User    @relation(fields: [userId], references: [id])
+  hotels Hotel[]
+}
+
+model Hotel {
+  id           String   @id @default(cuid())
+  customerId   String
+  name         String
+  location     String
+  taxNo        String?
+  tradeLicense String?
+  email        String?
+  phone        String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  customer       Customer            @relation(fields: [customerId], references: [id])
+  prices         HotelPrice[]
+  servicePrices  HotelServicePrice[]
+  sends          Send[]
+  stockMovements StockMovement[]
+  serviceOrders  ServiceOrder[]
+  ledgerEntries  LedgerEntry[]
+
+  @@index([customerId])
+}
+
+// The agreed deal: one ACTIVE row (validTo = null) per hotel + product.
+model HotelPrice {
+  id            String       @id @default(cuid())
+  hotelId       String
+  productId     String
+  discountType  DiscountType
+  // PERCENT: basis points (1000 = 10%), FLAT: poisha per piece
+  discountValue Int
+  agreedPrice   Int
+  validFrom     DateTime     @default(now())
+  validTo       DateTime?
+  createdById   String
+
+  hotel   Hotel   @relation(fields: [hotelId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([hotelId, productId, validTo])
+}
+
+// ---------- Sends (rental, charged per piece) ----------
+
+model Send {
+  id             String       @id @default(cuid())
+  hotelId        String
+  subtotal       Int
+  wholeDiscount  Int          @default(0)
+  total          Int
+  discountReason String?
+  note           String?
+  status         RecordStatus @default(ACTIVE)
+  voidReason     String?
+  voidedAt       DateTime?
+  createdById    String
+  createdAt      DateTime     @default(now())
+
+  hotel          Hotel           @relation(fields: [hotelId], references: [id])
+  lines          SendLine[]
+  stockMovements StockMovement[]
+  ledgerEntries  LedgerEntry[]
+
+  @@index([hotelId, createdAt])
+}
+
+model SendLine {
+  id                    String @id @default(cuid())
+  sendId                String
+  productId             String
+  quantity              Int
+  basePriceSnapshot     Int
+  agreedPriceSnapshot   Int
+  extraDiscountPerPiece Int    @default(0)
+  finalUnitPrice        Int
+  lineTotal             Int
+
+  send    Send    @relation(fields: [sendId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+}
+
+// ---------- Washing service (hotel-owned items) ----------
+
+model ServiceItem {
+  id         String              @id @default(cuid())
+  name       String              @unique
+  isActive   Boolean             @default(true)
+  createdAt  DateTime            @default(now())
+  prices     HotelServicePrice[]
+  orderLines ServiceOrderLine[]
+}
+
+model HotelServicePrice {
+  id            String    @id @default(cuid())
+  hotelId       String
+  serviceItemId String
+  price         Int
+  validFrom     DateTime  @default(now())
+  validTo       DateTime?
+  createdById   String
+
+  hotel       Hotel       @relation(fields: [hotelId], references: [id])
+  serviceItem ServiceItem @relation(fields: [serviceItemId], references: [id])
+
+  @@index([hotelId, serviceItemId, validTo])
+}
+
+model ServiceOrder {
+  id          String        @id @default(cuid())
+  hotelId     String
+  status      ServiceStatus @default(RECEIVED)
+  note        String?
+  total       Int           @default(0)
+  receivedAt  DateTime      @default(now())
+  washedAt    DateTime?
+  deliveredAt DateTime?
+  createdById String
+
+  hotel         Hotel              @relation(fields: [hotelId], references: [id])
+  lines         ServiceOrderLine[]
+  ledgerEntries LedgerEntry[]
+
+  @@index([hotelId, receivedAt])
+}
+
+model ServiceOrderLine {
+  id                String @id @default(cuid())
+  serviceOrderId    String
+  serviceItemId     String
+  quantity          Int
+  // filled in when the order is delivered
+  unitPriceSnapshot Int    @default(0)
+  lineTotal         Int    @default(0)
+
+  serviceOrder ServiceOrder @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade)
+  serviceItem  ServiceItem  @relation(fields: [serviceItemId], references: [id])
+}
+
+// ---------- Money ----------
+
+// CHARGE and PAYMENT amounts are positive. ADJUSTMENT is signed:
+// positive increases the due, negative decreases it.
+model LedgerEntry {
+  id             String         @id @default(cuid())
+  hotelId        String
+  type           LedgerType
+  amount         Int
+  date           DateTime
+  method         PaymentMethod?
+  note           String?
+  sendId         String?
+  serviceOrderId String?
+  status         RecordStatus   @default(ACTIVE)
+  voidReason     String?
+  createdById    String
+  createdAt      DateTime       @default(now())
+
+  hotel        Hotel         @relation(fields: [hotelId], references: [id])
+  send         Send?         @relation(fields: [sendId], references: [id])
+  serviceOrder ServiceOrder? @relation(fields: [serviceOrderId], references: [id])
+
+  @@index([hotelId, date])
+  @@index([type, date])
+}
+
+model ExpenseCategory {
+  id       String    @id @default(cuid())
+  name     String    @unique
+  expenses Expense[]
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  categoryId  String
+  amount      Int
+  paidAt      DateTime
+  note        String?
+  createdById String
+  createdAt   DateTime @default(now())
+
+  category ExpenseCategory @relation(fields: [categoryId], references: [id])
+
+  @@index([paidAt])
+}
