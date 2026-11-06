@@ -4,6 +4,7 @@ import { Banknote, Building2, Minus, NotebookPen, Percent, Plus, Trash2, X } fro
 import Link from "next/link";
 import { startTransition, useActionState, useMemo, useState } from "react";
 import { useT } from "@/components/i18n-provider";
+import { clearDraft, draftKey, loadDraft, useSaveDraft } from "@/components/pos/draft";
 import { applyKey, Keypad } from "@/components/pos/keypad";
 import { ModeToggle } from "@/components/pos/mode-toggle";
 import { ProductTile } from "@/components/pos/product-tile";
@@ -28,11 +29,25 @@ type Row = {
 type ItemRow = { key: string; productId: string | null; name: string; withUs: number; lastPrice: number | null };
 
 type Selected = { kind: "product" | "item"; id: string } | null;
+
+type SendDraft = {
+  qty: Record<string, number>;
+  extra: Record<string, string>;
+  itemQty: Record<string, number>;
+  itemPrice: Record<string, string>;
+  extraItems: ItemRow[];
+  whole: string;
+  reason: string;
+  payment: string;
+  method: "CASH" | "BANK" | "POS" | "EMPLOYEE";
+  note: string;
+};
 type PadMode = "qty" | "extra" | "price";
 
 const itemKeyOf = (productId: string | null, name: string) =>
   productId ? `p:${productId}` : `n:${name.trim().toLowerCase()}`;
 
+const PRODUCTS_TAB = "__products__";
 const ITEMS_TAB = "__items__";
 const METHODS = ["CASH", "BANK", "POS", "EMPLOYEE"] as const;
 const METHOD_TEXT: Record<(typeof METHODS)[number], string> = {
@@ -62,13 +77,17 @@ export function SendPos({
   const t = useT();
   const [state, action, pending] = useActionState(createSend, undefined);
 
-  const categories = useMemo(() => [...new Set(rows.map((r) => r.category))], [rows]);
-  const [tab, setTab] = useState(categories[0] ?? ITEMS_TAB);
-  const [qty, setQty] = useState<Record<string, number>>({});
-  const [extra, setExtra] = useState<Record<string, string>>({});
-  const [itemQty, setItemQty] = useState<Record<string, number>>({});
-  const [itemPrice, setItemPrice] = useState<Record<string, string>>({});
-  const [extraItems, setExtraItems] = useState<ItemRow[]>([]);
+  // Unfinished list for this hotel, saved in the browser (rendered client-only).
+  const storageKey = draftKey("send", hotel.id);
+  const [draft] = useState(() => loadDraft<SendDraft>(storageKey));
+  const [restored, setRestored] = useState(draft !== null);
+
+  const [tab, setTab] = useState(rows.length > 0 ? PRODUCTS_TAB : ITEMS_TAB);
+  const [qty, setQty] = useState<Record<string, number>>(draft?.qty ?? {});
+  const [extra, setExtra] = useState<Record<string, string>>(draft?.extra ?? {});
+  const [itemQty, setItemQty] = useState<Record<string, number>>(draft?.itemQty ?? {});
+  const [itemPrice, setItemPrice] = useState<Record<string, string>>(draft?.itemPrice ?? {});
+  const [extraItems, setExtraItems] = useState<ItemRow[]>(draft?.extraItems ?? []);
   const [otherProduct, setOtherProduct] = useState("");
   const [otherName, setOtherName] = useState("");
   const [warning, setWarning] = useState("");
@@ -83,11 +102,11 @@ export function SendPos({
     [itemRows, extraItems],
   );
   const priceText = (r: ItemRow) => itemPrice[r.key] ?? (r.lastPrice !== null ? toMoneyInput(r.lastPrice) : "");
-  const [whole, setWhole] = useState("");
-  const [reason, setReason] = useState("");
-  const [payment, setPayment] = useState("");
-  const [method, setMethod] = useState<(typeof METHODS)[number]>("CASH");
-  const [note, setNote] = useState("");
+  const [whole, setWhole] = useState(draft?.whole ?? "");
+  const [reason, setReason] = useState(draft?.reason ?? "");
+  const [payment, setPayment] = useState(draft?.payment ?? "");
+  const [method, setMethod] = useState<(typeof METHODS)[number]>(draft?.method ?? "CASH");
+  const [note, setNote] = useState(draft?.note ?? "");
 
   const totals = useMemo(
     () =>
@@ -114,6 +133,13 @@ export function SendPos({
   const pieces = productLines.reduce((s, x) => s + x.line.quantity, 0) + itemLines.reduce((s, x) => s + x.line.quantity, 0);
   const hasExtra = totals.extraDiscountTotal > 0;
   const paid = cents(payment);
+
+  useSaveDraft(
+    storageKey,
+    { qty, extra, itemQty, itemPrice, extraItems, whole, reason, payment, method, note } satisfies SendDraft,
+    pieces > 0 && !pending,
+    state,
+  );
 
   function select(next: Selected, mode: PadMode = "qty") {
     setSelected(next);
@@ -202,7 +228,9 @@ export function SendPos({
     setReason("");
     setPayment("");
     setNote("");
+    setRestored(false);
     select(null);
+    clearDraft(storageKey);
   }
 
   function confirmSend() {
@@ -239,6 +267,9 @@ export function SendPos({
     formData.set("paymentAmount", payment);
     formData.set("paymentMethod", method);
     formData.set("note", note);
+    // A successful send leaves this screen; if the server returns an error,
+    // the draft is saved again by useSaveDraft (it re-runs when `state` changes).
+    clearDraft(storageKey);
     startTransition(() => action(formData));
   }
 
@@ -249,7 +280,17 @@ export function SendPos({
 
   return (
     <div className="flex flex-col gap-4 pb-28">
-      <ModeToggle mode="send" hotelId={hotel.id} hotelName={hotel.name} dirty={pieces > 0} />
+      <div className="flex flex-wrap items-center gap-3">
+        <ModeToggle mode="send" hotelId={hotel.id} hotelName={hotel.name} />
+        {restored && pieces > 0 && (
+          <div className="ml-auto flex items-center gap-2 rounded-full border border-amber-300 bg-amber-50 py-1 pl-4 pr-1 text-sm text-amber-900">
+            <span className="font-medium">{t("Unfinished list restored")}</span>
+            <Button size="sm" variant="secondary" onClick={clearAll}>
+              {t("Start over")}
+            </Button>
+          </div>
+        )}
+      </div>
       <div className="grid gap-4 lg:grid-cols-[minmax(260px,320px)_1fr_250px]">
         {/* Running list */}
         <section className="order-2 flex flex-col rounded-3xl border border-(--line) bg-white lg:order-1" aria-label={t("Send list")}>
@@ -329,11 +370,11 @@ export function SendPos({
         {/* Tiles + keypad */}
         <section className="order-1 min-w-0 space-y-3 lg:order-2">
           <div className="flex flex-wrap gap-2" role="tablist">
-            {categories.map((c) => (
-              <TabButton key={c} active={tab === c} onClick={() => setTab(c)}>
-                {c}
+            {rows.length > 0 && (
+              <TabButton active={tab === PRODUCTS_TAB} onClick={() => setTab(PRODUCTS_TAB)}>
+                {t("Your products")}
               </TabButton>
-            ))}
+            )}
             <TabButton active={tab === ITEMS_TAB} onClick={() => setTab(ITEMS_TAB)}>
               {t("Their items (washed)")}
             </TabButton>
@@ -363,8 +404,8 @@ export function SendPos({
                     {t("Other item")}
                   </button>,
                 ]
-              : rows
-                  .filter((r) => r.category === tab)
+              : [...rows]
+                  .sort((a, b) => a.name.localeCompare(b.name))
                   .map((r) => (
                     <ProductTile
                       key={r.productId}

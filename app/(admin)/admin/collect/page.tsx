@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ClientOnly } from "@/components/pos/client-only";
 import { HotelChooser } from "@/components/pos/hotel-chooser";
 import { getHotelChooserOptions } from "@/server/modules/hotels/queries";
 import { getCollectScreen } from "@/server/modules/collect/queries";
@@ -20,5 +21,9 @@ export default async function CollectPage({ searchParams }: PageProps<"/admin/co
   const { hotel, rows, itemRows, due } = await getCollectScreen(hotelId);
   if (!hotel) return chooser();
 
-  return <CollectPos key={hotel.id} hotel={{ id: hotel.id, name: hotel.name }} rows={rows} itemRows={itemRows} due={due} />;
+  return (
+    <ClientOnly>
+      <CollectPos key={hotel.id} hotel={{ id: hotel.id, name: hotel.name }} rows={rows} itemRows={itemRows} due={due} />
+    </ClientOnly>
+  );
 }

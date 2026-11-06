@@ -615,4 +615,10 @@ export const it: Record<string, string> = {
   "All hotels and their dues": "Tutti gli hotel e i loro saldi",
   "To add a hotel, open its owner in Customers.": "Per aggiungere un hotel, apri il suo proprietario in Clienti.",
   "Create these first": "Da creare per prime",
+  "Your unfinished list for this hotel was restored.": "L'elenco non finito per questo hotel è stato ripristinato.",
+  "Start over": "Ricomincia",
+  "Unfinished list": "Elenco non finito",
+  "Left {left} of {count}": "Restano {left} di {count}",
+  "Unfinished list restored": "Elenco non finito ripristinato",
+  "Your products": "Vostri prodotti",
 };

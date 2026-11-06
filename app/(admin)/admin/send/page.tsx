@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ClientOnly } from "@/components/pos/client-only";
 import { HotelChooser } from "@/components/pos/hotel-chooser";
 import { getT } from "@/server/i18n";
 import { getHotelChooserOptions } from "@/server/modules/hotels/queries";
@@ -22,13 +23,15 @@ export default async function SendPage({ searchParams }: PageProps<"/admin/send"
 
   // Shown even without a deal: the hotel may only send its own pieces to wash.
   return (
-    <SendPos
-      key={hotel.id}
-      hotel={{ id: hotel.id, name: hotel.name }}
-      rows={rows}
-      itemRows={itemRows}
-      products={products}
-      due={due}
-    />
+    <ClientOnly>
+      <SendPos
+        key={hotel.id}
+        hotel={{ id: hotel.id, name: hotel.name }}
+        rows={rows}
+        itemRows={itemRows}
+        products={products}
+        due={due}
+      />
+    </ClientOnly>
   );
 }

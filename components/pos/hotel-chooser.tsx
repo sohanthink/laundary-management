@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useT } from "@/components/i18n-provider";
 import { formatMoney } from "@/server/money";
+import { useDraftHotelIds } from "./draft";
 import { ModeToggle } from "./mode-toggle";
 
 type Hotel = { id: string; name: string; location: string; owner: string; phone: string | null; due: number };
@@ -24,6 +25,8 @@ export function HotelChooser({
     mode === "profile" ? `/admin/hotels/${id}` : `${mode === "send" ? "/admin/send" : "/admin/collect"}?hotel=${id}`;
   const t = useT();
   const [query, setQuery] = useState("");
+  const drafts = useDraftHotelIds(mode === "collect" ? "collect" : "send");
+  const showDrafts = mode !== "profile";
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -63,6 +66,11 @@ export function HotelChooser({
                 <Building2 className="size-9 shrink-0 text-(--teal)" strokeWidth={1.6} aria-hidden />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-lg font-semibold text-(--ink)">{h.name}</span>
+                  {showDrafts && drafts.has(h.id) && (
+                    <span className="mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">
+                      {t("Unfinished list")}
+                    </span>
+                  )}
                   <span className="block truncate text-sm text-(--muted)">
                     {[h.owner, h.location, h.phone].filter(Boolean).join(" · ")}
                   </span>

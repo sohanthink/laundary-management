@@ -4,6 +4,7 @@ import { Building2, CheckCheck, Minus, NotebookPen, Plus, Trash2, X } from "luci
 import Link from "next/link";
 import { startTransition, useActionState, useState } from "react";
 import { useT } from "@/components/i18n-provider";
+import { clearDraft, draftKey, loadDraft, useSaveDraft } from "@/components/pos/draft";
 import { applyKey, Keypad } from "@/components/pos/keypad";
 import { ModeToggle } from "@/components/pos/mode-toggle";
 import { ProductTile } from "@/components/pos/product-tile";
@@ -20,6 +21,15 @@ type Row = { productId: string; name: string; category: string; photoPath: strin
 type ItemRow = { key: string; productId: string | null; name: string; photoPath: string | null; withUs: number };
 
 type Mode = "returned" | "rejected" | "items";
+
+type CollectDraft = {
+  returned: Record<string, number>;
+  rejected: Record<string, number>;
+  creditEdits: Record<string, string>;
+  itemQty: Record<string, number>;
+  extraItems: ItemRow[];
+  note: string;
+};
 type Selected = { kind: Mode; id: string } | null;
 
 export function CollectPos({
@@ -34,11 +44,15 @@ export function CollectPos({
   due: number;
 }) {
   const t = useT();
-  const [returned, setReturned] = useState<Record<string, number>>({});
-  const [rejected, setRejected] = useState<Record<string, number>>({});
-  const [creditEdits, setCreditEdits] = useState<Record<string, string>>({});
-  const [itemQty, setItemQty] = useState<Record<string, number>>({});
-  const [extraItems, setExtraItems] = useState<ItemRow[]>([]);
+  // Unfinished list for this hotel, saved in the browser (rendered client-only).
+  const storageKey = draftKey("collect", hotel.id);
+  const [draft] = useState(() => loadDraft<CollectDraft>(storageKey));
+  const [restored, setRestored] = useState(draft !== null);
+  const [returned, setReturned] = useState<Record<string, number>>(draft?.returned ?? {});
+  const [rejected, setRejected] = useState<Record<string, number>>(draft?.rejected ?? {});
+  const [creditEdits, setCreditEdits] = useState<Record<string, string>>(draft?.creditEdits ?? {});
+  const [itemQty, setItemQty] = useState<Record<string, number>>(draft?.itemQty ?? {});
+  const [extraItems, setExtraItems] = useState<ItemRow[]>(draft?.extraItems ?? []);
   const [otherOpen, setOtherOpen] = useState(false);
   const [otherName, setOtherName] = useState("");
   const [mode, setMode] = useState<Mode>(rows.length > 0 ? "returned" : "items");
@@ -46,7 +60,7 @@ export function CollectPos({
   const [padMode, setPadMode] = useState<"qty" | "credit">("qty");
   const [buffer, setBuffer] = useState("");
   const [noteOpen, setNoteOpen] = useState(false);
-  const [note, setNote] = useState("");
+  const [note, setNote] = useState(draft?.note ?? "");
 
   function reset() {
     setReturned({});
@@ -57,6 +71,8 @@ export function CollectPos({
     setNote("");
     setSelected(null);
     setBuffer("");
+    setRestored(false);
+    clearDraft(storageKey);
   }
 
   const [state, action, pending] = useActionState(async (prev: ActionState, formData: FormData) => {
@@ -81,6 +97,13 @@ export function CollectPos({
     returnedLines.reduce((s, r) => s + (returned[r.productId] ?? 0), 0) +
     rejectedLines.reduce((s, r) => s + (rejected[r.productId] ?? 0), 0);
   const itemPieces = itemLines.reduce((s, r) => s + (itemQty[r.key] ?? 0), 0);
+
+  useSaveDraft(
+    storageKey,
+    { returned, rejected, creditEdits, itemQty, extraItems, note } satisfies CollectDraft,
+    backPieces + itemPieces > 0 && !pending,
+    state,
+  );
 
   function countOf(target: Selected) {
     if (!target) return 0;
@@ -178,7 +201,17 @@ export function CollectPos({
 
   return (
     <div className="flex flex-col gap-4 pb-28">
-      <ModeToggle mode="collect" hotelId={hotel.id} hotelName={hotel.name} dirty={backPieces + itemPieces > 0} />
+      <div className="flex flex-wrap items-center gap-3">
+        <ModeToggle mode="collect" hotelId={hotel.id} hotelName={hotel.name} />
+        {restored && backPieces + itemPieces > 0 && (
+          <div className="ml-auto flex items-center gap-2 rounded-full border border-amber-300 bg-amber-50 py-1 pl-4 pr-1 text-sm text-amber-900">
+            <span className="font-medium">{t("Unfinished list restored")}</span>
+            <Button size="sm" variant="secondary" onClick={reset}>
+              {t("Start over")}
+            </Button>
+          </div>
+        )}
+      </div>
       <div className="grid gap-4 lg:grid-cols-[minmax(260px,320px)_1fr_250px]">
         <section className="order-2 flex flex-col rounded-3xl border border-(--line) bg-white lg:order-1" aria-label={t("Collect list")}>
           <div className="border-b border-(--line) px-4 py-3">
@@ -288,7 +321,7 @@ export function CollectPos({
                 <ProductTile
                   key={r.productId}
                   name={r.name}
-                  info={t("At hotel: {count} · left {left}", { count: r.atHotel, left: left(r) })}
+                  info={t("Left {left} of {count}", { count: r.atHotel, left: left(r) })}
                   photoPath={r.photoPath}
                   count={(mode === "returned" ? returned : rejected)[r.productId] ?? 0}
                   selected={selected?.kind === mode && selected.id === r.productId}
