@@ -9,11 +9,10 @@ export const metadata: Metadata = {
 const NAV = [
   { href: "/admin", label: "Dashboard", exact: true },
   { href: "/admin/send", label: "Send" },
-  { href: "/admin/return", label: "Return" },
-  { href: "/admin/stock", label: "Stock" },
+  { href: "/admin/collect", label: "Collect" },
+  { href: "/admin/tracking", label: "Tracking" },
   { href: "/admin/products", label: "Products" },
   { href: "/admin/customers", label: "Customers" },
-  { href: "/admin/services", label: "Washing service" },
   { href: "/admin/payments", label: "Payments" },
   { href: "/admin/expenses", label: "Expenses" },
   { href: "/admin/audit", label: "Reports" },

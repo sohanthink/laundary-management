@@ -2,12 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DateRangeForm } from "@/components/date-range-form";
-import {
-  HoldingsTable,
-  PricesTable,
-  SendsTable,
-  ServiceOrdersTable,
-} from "@/components/hotel-sections";
+import { ItemsWithUsTable, PricesTable, SendsTable, TrackingTable } from "@/components/hotel-sections";
 import { StatementTable } from "@/components/statement-table";
 import { ActionForm } from "@/components/ui/action-form";
 import { LinkButton } from "@/components/ui/button";
@@ -30,8 +25,9 @@ export default async function HotelProfilePage({ params, searchParams }: PagePro
   const range = rangeFromParams(sp.from, sp.to);
   const profile = await getHotelProfile(id, range);
   if (!profile) notFound();
-  const { hotel, prices, servicePrices, holdings, due, statement, sends, serviceOrders } = profile;
-  const piecesHeld = holdings.reduce((s, h) => s + h.held, 0);
+  const { hotel, prices, servicePrices, tracking, itemTracking, due, statement, sends } = profile;
+  const piecesHeld = tracking.reduce((s, t) => s + t.atHotel, 0);
+  const itemsWithUs = itemTracking.reduce((s, t) => s + t.withUs, 0);
 
   return (
     <>
@@ -51,7 +47,7 @@ export default async function HotelProfilePage({ params, searchParams }: PagePro
             <LinkButton href={`/admin/send?hotel=${hotel.id}`} variant="primary">
               Send
             </LinkButton>
-            <LinkButton href={`/admin/return?hotel=${hotel.id}`}>Return</LinkButton>
+            <LinkButton href={`/admin/collect?hotel=${hotel.id}`}>Collect</LinkButton>
             <LinkButton href={`/admin/hotels/${hotel.id}/prices`}>Prices</LinkButton>
             <LinkButton href={`/admin/audit/hotels/${hotel.id}`}>Audit</LinkButton>
           </>
@@ -60,8 +56,8 @@ export default async function HotelProfilePage({ params, searchParams }: PagePro
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <Stat label="Current due" value={formatTk(due)} tone={due > 0 ? "warn" : "good"} />
-        <Stat label="Pieces at hotel" value={piecesHeld} />
-        <Stat label="Agreed products" value={prices.length} />
+        <Stat label="Your pieces at hotel" value={piecesHeld} />
+        <Stat label="Their items with us" value={itemsWithUs} />
       </div>
 
       <div className="mb-6 flex flex-wrap gap-2">
@@ -121,21 +117,22 @@ export default async function HotelProfilePage({ params, searchParams }: PagePro
         </Card>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <Card title="Pieces at this hotel">
-            <HoldingsTable holdings={holdings} />
+          <Card title="Your products: sent and back">
+            <TrackingTable tracking={tracking} />
+          </Card>
+          <Card title="Their own items with us">
+            <ItemsWithUsTable items={itemTracking} />
+          </Card>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card title="Agreed prices" actions={<LinkButton href={`/admin/hotels/${hotel.id}/prices`} size="sm">Edit prices</LinkButton>}>
+            <PricesTable prices={prices} servicePrices={servicePrices} />
           </Card>
           <Card title="Recent sends" actions={<LinkButton href={`/admin/audit/hotels/${hotel.id}`} size="sm" variant="ghost">All activity</LinkButton>}>
             <SendsTable sends={sends} href={(sendId) => `/admin/send/${sendId}`} />
           </Card>
         </div>
-
-        <Card title="Agreed prices" actions={<LinkButton href={`/admin/hotels/${hotel.id}/prices`} size="sm">Edit prices</LinkButton>}>
-          <PricesTable prices={prices} servicePrices={servicePrices} />
-        </Card>
-
-        <Card title="Washing service orders" actions={<LinkButton href={`/admin/services?hotel=${hotel.id}`} size="sm">New order</LinkButton>}>
-          <ServiceOrdersTable orders={serviceOrders} href={(orderId) => `/admin/services/${orderId}`} />
-        </Card>
 
         <Card title="Details">
           <dl className="grid gap-3 text-sm sm:grid-cols-3">

@@ -8,35 +8,37 @@ import { logAudit } from "@/server/audit";
 import { requirePermission } from "@/server/auth/dal";
 import { db } from "@/server/db";
 import { sendEmail } from "@/server/email";
-import { id, optionalMoney, optionalText, parseForm, type ActionState } from "@/server/forms";
+import {
+  id,
+  jsonArray,
+  optionalMoney,
+  optionalText,
+  parseForm,
+  quantity,
+  type ActionState,
+} from "@/server/forms";
 import { isMoneyInput, toPoisha } from "@/server/money";
 import { getDue } from "@/server/modules/ledger/core";
-import { activePrices } from "@/server/modules/prices/queries";
+import { activePrices, activeServicePrices } from "@/server/modules/prices/queries";
 import { BusinessError, revalidateAll, SERIALIZABLE, toActionError } from "@/server/modules/shared";
 import { assertEnough } from "@/server/modules/stock/core";
 import { calculateSend } from "@/server/pricing";
 import { findSend } from "./queries";
 import { receiptRecipient, sendReceiptEmail } from "./receipt";
 
-const lineSchema = z.object({
-  productId: z.string().min(1),
-  quantity: z.number().int().min(0).max(100000),
-  extraPerPiece: z
-    .string()
-    .trim()
-    .refine((v) => !v || isMoneyInput(v), "Extra discount must be a number like 2 or 1.50"),
-});
-
 const sendSchema = z.object({
   hotelId: id,
-  lines: z.string().transform((value, ctx) => {
-    try {
-      return z.array(lineSchema).parse(JSON.parse(value));
-    } catch {
-      ctx.addIssue({ code: "custom", message: "Invalid product lines" });
-      return z.NEVER;
-    }
-  }),
+  lines: jsonArray(
+    z.object({
+      productId: z.string().min(1),
+      quantity,
+      extraPerPiece: z
+        .string()
+        .trim()
+        .refine((v) => !v || isMoneyInput(v), "Extra discount must be a number like 2 or 1.50"),
+    }),
+  ),
+  items: jsonArray(z.object({ serviceItemId: z.string().min(1), quantity })),
   wholeDiscount: optionalMoney,
   discountReason: optionalText,
   note: optionalText,
@@ -44,6 +46,10 @@ const sendSchema = z.object({
   paymentMethod: z.enum(["CASH", "BANK", "EMPLOYEE"]).default("CASH"),
 });
 
+/**
+ * One send = your products going to the hotel + the hotel's own items coming
+ * back washed. Everything is priced from the database and charged together.
+ */
 export async function createSend(_: ActionState, formData: FormData): Promise<ActionState> {
   const user = await requirePermission("send:create");
   const parsed = parseForm(sendSchema, formData);
@@ -53,7 +59,10 @@ export async function createSend(_: ActionState, formData: FormData): Promise<Ac
   const lines = input.lines
     .filter((l) => l.quantity > 0)
     .map((l) => ({ ...l, extraPerPiece: l.extraPerPiece ? toPoisha(l.extraPerPiece) : 0 }));
-  if (lines.length === 0) return { error: "Enter a quantity for at least one product." };
+  const items = input.items.filter((i) => i.quantity > 0);
+  if (lines.length === 0 && items.length === 0) {
+    return { error: "Enter a quantity for at least one product or item." };
+  }
 
   const hasExtra = input.wholeDiscount > 0 || lines.some((l) => l.extraPerPiece > 0);
   if (hasExtra && !input.discountReason) {
@@ -66,9 +75,8 @@ export async function createSend(_: ActionState, formData: FormData): Promise<Ac
       const hotel = await tx.hotel.findUnique({ where: { id: input.hotelId } });
       if (!hotel || !hotel.isActive) throw new BusinessError("Hotel not found or inactive.");
 
-      // Prices always come from the database, never from the browser.
       const deal = new Map((await activePrices(tx, hotel.id)).map((p) => [p.productId, p]));
-      const priced = lines.map((line) => {
+      const pricedLines = lines.map((line) => {
         const price = deal.get(line.productId);
         if (!price || !price.product.isActive) {
           throw new BusinessError("A product is not in this hotel's deal. Reload the page.");
@@ -76,24 +84,22 @@ export async function createSend(_: ActionState, formData: FormData): Promise<Ac
         return { line, price };
       });
 
-      await assertEnough(
-        tx,
-        "AVAILABLE",
-        priced.map(({ line, price }) => ({
-          productId: line.productId,
-          quantity: line.quantity,
-          name: price.product.name,
-        })),
-      );
+      const itemPrices = new Map((await activeServicePrices(tx, hotel.id)).map((p) => [p.serviceItemId, p]));
+      const pricedItems = items.map((item) => {
+        const price = itemPrices.get(item.serviceItemId);
+        if (!price) throw new BusinessError("An item has no washing price for this hotel. Reload the page.");
+        return { item, price: price.price };
+      });
 
       const totals = calculateSend(
-        priced.map(({ line, price }) => ({
+        pricedLines.map(({ line, price }) => ({
           basePrice: price.product.basePrice,
           agreedPrice: price.agreedPrice,
           extraPerPiece: line.extraPerPiece,
           quantity: line.quantity,
         })),
         input.wholeDiscount,
+        pricedItems.map(({ item, price }) => ({ price, quantity: item.quantity })),
       );
 
       const send = await tx.send.create({
@@ -106,7 +112,7 @@ export async function createSend(_: ActionState, formData: FormData): Promise<Ac
           note: input.note,
           createdById: user.id,
           lines: {
-            create: priced.map(({ line }, i) => ({
+            create: pricedLines.map(({ line }, i) => ({
               productId: line.productId,
               quantity: line.quantity,
               basePriceSnapshot: totals.lines[i].basePrice,
@@ -120,19 +126,36 @@ export async function createSend(_: ActionState, formData: FormData): Promise<Ac
       });
 
       const batchId = randomUUID();
-      await tx.stockMovement.createMany({
-        data: priced.map(({ line }) => ({
-          productId: line.productId,
-          hotelId: hotel.id,
-          type: "SEND" as const,
-          fromState: "AVAILABLE" as const,
-          toState: "AT_HOTEL" as const,
-          quantity: line.quantity,
-          batchId,
-          sendId: send.id,
-          createdById: user.id,
-        })),
-      });
+      if (pricedLines.length > 0) {
+        await tx.stockMovement.createMany({
+          data: pricedLines.map(({ line }) => ({
+            productId: line.productId,
+            hotelId: hotel.id,
+            type: "SEND" as const,
+            fromState: "NONE" as const,
+            toState: "AT_HOTEL" as const,
+            quantity: line.quantity,
+            batchId,
+            sendId: send.id,
+            createdById: user.id,
+          })),
+        });
+      }
+      if (pricedItems.length > 0) {
+        await tx.hotelItemMovement.createMany({
+          data: pricedItems.map(({ item, price }, i) => ({
+            hotelId: hotel.id,
+            serviceItemId: item.serviceItemId,
+            type: "DELIVERED" as const,
+            quantity: item.quantity,
+            unitPriceSnapshot: price,
+            lineTotal: totals.itemLines[i].lineTotal,
+            sendId: send.id,
+            batchId,
+            createdById: user.id,
+          })),
+        });
+      }
 
       const now = new Date();
       if (totals.total > 0) {
@@ -143,7 +166,7 @@ export async function createSend(_: ActionState, formData: FormData): Promise<Ac
             amount: totals.total,
             date: now,
             sendId: send.id,
-            note: "Sent products",
+            note: pricedItems.length > 0 && pricedLines.length === 0 ? "Washed your items" : "Sent products",
             createdById: user.id,
           },
         });
@@ -189,7 +212,7 @@ const voidSchema = z.object({
   reason: z.string().trim().min(3, "Give a reason"),
 });
 
-/** Never deletes: marks the send voided, brings the pieces back and reverses the charge. */
+/** Never deletes: marks the send voided, takes the pieces off the hotel and reverses the charge. */
 export async function voidSend(_: ActionState, formData: FormData): Promise<ActionState> {
   const user = await requirePermission("send:void");
   const parsed = parseForm(voidSchema, formData);
@@ -204,28 +227,29 @@ export async function voidSend(_: ActionState, formData: FormData): Promise<Acti
       if (!send) throw new BusinessError("Send not found.");
       if (send.status === "VOIDED") throw new BusinessError("This send is already voided.");
 
-      await assertEnough(
-        tx,
-        "AT_HOTEL",
-        send.lines.map((l) => ({ productId: l.productId, quantity: l.quantity, name: l.product.name })),
-        send.hotelId,
-      );
-
-      const batchId = randomUUID();
-      await tx.stockMovement.createMany({
-        data: send.lines.map((l) => ({
-          productId: l.productId,
-          hotelId: send.hotelId,
-          type: "SEND_VOID" as const,
-          fromState: "AT_HOTEL" as const,
-          toState: "AVAILABLE" as const,
-          quantity: l.quantity,
-          batchId,
-          sendId: send.id,
-          note: parsed.data.reason,
-          createdById: user.id,
-        })),
-      });
+      if (send.lines.length > 0) {
+        await assertEnough(
+          tx,
+          "AT_HOTEL",
+          send.lines.map((l) => ({ productId: l.productId, quantity: l.quantity, name: l.product.name })),
+          send.hotelId,
+        );
+        const batchId = randomUUID();
+        await tx.stockMovement.createMany({
+          data: send.lines.map((l) => ({
+            productId: l.productId,
+            hotelId: send.hotelId,
+            type: "SEND_VOID" as const,
+            fromState: "AT_HOTEL" as const,
+            toState: "NONE" as const,
+            quantity: l.quantity,
+            batchId,
+            sendId: send.id,
+            note: parsed.data.reason,
+            createdById: user.id,
+          })),
+        });
+      }
 
       if (send.total > 0) {
         await tx.ledgerEntry.create({
@@ -253,12 +277,12 @@ export async function voidSend(_: ActionState, formData: FormData): Promise<Acti
   } catch (error) {
     if (error instanceof BusinessError && error.message.includes("at the hotel")) {
       return {
-        error: `${error.message} Some pieces were already returned, so this send can't be voided. Use an adjustment on the hotel profile instead.`,
+        error: `${error.message} Some pieces were already collected back, so this send can't be voided. Use an adjustment on the hotel profile instead.`,
       };
     }
     return toActionError(error);
   }
 
   revalidateAll();
-  return { ok: true, message: "Send voided. Stock and due are corrected." };
+  return { ok: true, message: "Send voided. Tracking and due are corrected." };
 }

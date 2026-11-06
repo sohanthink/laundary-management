@@ -16,7 +16,7 @@ type Props = {
 };
 
 export function DiscountFields({ product, products, defaultType = "NONE", defaultValue = "" }: Props) {
-  const [productId, setProductId] = useState(product?.id ?? "");
+  const [productId, setProductId] = useState(product?.id ?? products?.[0]?.id ?? "");
   const [type, setType] = useState<DiscountType>(defaultType);
   const [value, setValue] = useState(defaultValue);
 

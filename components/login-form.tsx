@@ -16,7 +16,7 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+    <form action={action} onSubmit={handleSubmit} className="mt-8 space-y-5">
       <label className="block">
         <span className="mb-2 block text-sm font-medium text-(--ink)">
           Email

@@ -1,8 +1,8 @@
 # an-nafi
 
-Linen rental and washing service management for hotels.
+Linen rental management for hotels: track what you send, what comes back, and what each hotel owes.
 
-- **Admin**: products and stock, customers and hotels, agreed prices, send / return, washing service, payments, expenses, reports.
+- **Admin**: products, customers and hotels, agreed prices, Send and Collect (including the hotel's own items you wash), tracking, payments, expenses, reports.
 - **Hotel owner**: read-only portal with their hotels, pieces held, statement, receipts and due.
 
 Built with Next.js 16, PostgreSQL (Neon) + Prisma 6, custom auth (bcrypt + database sessions), Gmail via Nodemailer, and local photo storage.
@@ -26,16 +26,16 @@ Email is optional. Without `GMAIL_USER` / `GMAIL_APP_PASSWORD`, emails are print
 
 1. Products > Categories: create categories, then products with base price and the pieces you own.
 2. Customers: add the hotel owner (a login is created), then add their hotels.
-3. Hotel > Prices: pick the products in the deal and set discounts. Add washing-service prices if needed.
+3. Hotel > Prices: pick the products in the deal and set discounts. Add washing prices for the hotel's own items if needed (item types are under Products > Hotel's own items).
 4. Send: choose the hotel, enter quantities. Each send adds a charge to the hotel's due.
-5. Return, Stock (mark washed, lost/damaged), Payments, Expenses, Reports.
+5. Collect: used pieces back, rejected pieces (credited), and the hotel's own items picked up. Then Tracking, Payments, Expenses, Reports.
 
 ## Commands
 
 | Command | What it does |
 |---|---|
 | `npm run dev` | Development server |
-| `npm test` | Unit tests (pricing, stock, ledger math) |
+| `npm test` | Unit tests (pricing, FIFO matching, ledger math) |
 | `npm run typecheck` | Generate route types and run TypeScript |
 | `npm run lint` | ESLint |
 | `npm run db:migrate` | Create a new migration after editing `prisma/schema.prisma` |
@@ -52,13 +52,13 @@ app/uploads/         serves uploaded photos (logged-in users only)
 server/auth/         sessions, permissions, data access checks
 server/modules/      one folder per feature: queries.ts (reads), actions.ts (writes)
 server/pricing.ts    price math, shared with the Send screen (unit tested)
-server/stock.ts      stock buckets and FIFO matching (unit tested)
+server/stock.ts      movement buckets and FIFO matching (unit tested)
 server/ledger.ts     due and running balance (unit tested)
 prisma/              schema, migrations, seed
 proxy.ts             redirects logged-out visitors (real checks are in server/auth/dal.ts)
 ```
 
-Money is stored as integer poisha (100 = 1 tk). Stock counts and dues are always calculated from movements and ledger entries, never stored.
+Money is stored as integer poisha (100 = 1 tk). Piece counts and dues are always calculated from movements and ledger entries, never stored.
 
 ## Deploying to a VPS (Ubuntu)
 
@@ -99,4 +99,4 @@ Backups:
 
 - `npm run lint && npm test && npm run build` pass.
 - `.env` on the server has a strong `ADMIN_PASSWORD`; change it after the first login.
-- Full flow works on the live domain over HTTPS: add stock, register a hotel, set prices, send, return, wash, pay, view statement, owner logs in.
+- Full flow works on the live domain over HTTPS: register a hotel, set prices, send, collect, pay, view statement, owner logs in.

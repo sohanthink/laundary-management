@@ -3,8 +3,8 @@ import type { Prisma } from "@prisma/client";
 import { requirePermission } from "@/server/auth/dal";
 import { db } from "@/server/db";
 import { getDue } from "@/server/modules/ledger/core";
-import { activePrices } from "@/server/modules/prices/queries";
-import { bucketsFor, getBucketsByProduct } from "@/server/modules/stock/core";
+import { activePrices, activeServicePrices } from "@/server/modules/prices/queries";
+import { getItemTracking, getProductTracking } from "@/server/modules/tracking/core";
 
 export async function getSendScreen(hotelId: string | undefined) {
   await requirePermission("send:create");
@@ -13,13 +13,21 @@ export async function getSendScreen(hotelId: string | undefined) {
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   });
-  if (!hotelId) return { hotels, hotel: null, rows: [], due: 0 };
+  const empty = { hotels, hotel: null, rows: [], itemRows: [], due: 0 };
+  if (!hotelId) return empty;
 
   const hotel = await db.hotel.findUnique({ where: { id: hotelId } });
-  if (!hotel) return { hotels, hotel: null, rows: [], due: 0 };
+  if (!hotel) return empty;
 
-  const [prices, due] = await Promise.all([activePrices(db, hotelId), getDue(db, hotelId)]);
-  const buckets = await getBucketsByProduct(db, { productIds: prices.map((p) => p.productId) });
+  const [prices, servicePrices, due, productTracks, itemTracks] = await Promise.all([
+    activePrices(db, hotelId),
+    activeServicePrices(db, hotelId),
+    getDue(db, hotelId),
+    getProductTracking(db, hotelId),
+    getItemTracking(db, hotelId),
+  ]);
+  const atHotel = new Map(productTracks.map((t) => [t.productId, t.atHotel]));
+  const withUs = new Map(itemTracks.map((t) => [t.serviceItemId, t.withUs]));
 
   const rows = prices
     .filter((p) => p.product.isActive)
@@ -27,18 +35,27 @@ export async function getSendScreen(hotelId: string | undefined) {
       productId: p.productId,
       name: p.product.name,
       category: p.product.category.name,
-      photoPath: p.product.photoPath,
       basePrice: p.product.basePrice,
       agreedPrice: p.agreedPrice,
-      available: bucketsFor(buckets, p.productId).AVAILABLE,
+      atHotel: atHotel.get(p.productId) ?? 0,
     }));
 
-  return { hotels, hotel, rows, due };
+  const itemRows = servicePrices
+    .filter((p) => p.serviceItem.isActive)
+    .map((p) => ({
+      serviceItemId: p.serviceItemId,
+      name: p.serviceItem.name,
+      price: p.price,
+      withUs: withUs.get(p.serviceItemId) ?? 0,
+    }));
+
+  return { hotels, hotel, rows, itemRows, due };
 }
 
 const sendInclude = {
   hotel: { include: { customer: { include: { user: true } } } },
   lines: { include: { product: true } },
+  itemLines: { include: { serviceItem: true } },
   ledgerEntries: true,
 } satisfies Prisma.SendInclude;
 
@@ -58,7 +75,7 @@ export async function listSends(filter: { hotelId?: string; take?: number } = {}
   await requirePermission("admin:access");
   return db.send.findMany({
     where: filter.hotelId ? { hotelId: filter.hotelId } : {},
-    include: { hotel: true, _count: { select: { lines: true } } },
+    include: { hotel: true, _count: { select: { lines: true, itemLines: true } } },
     orderBy: { createdAt: "desc" },
     take: filter.take ?? 50,
   });

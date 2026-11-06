@@ -7,27 +7,27 @@ import { Badge, Card, Empty, PageHeader, Table, Td, Th } from "@/components/ui/l
 import { Modal } from "@/components/ui/modal";
 import { formatTk } from "@/server/money";
 import { createProduct } from "@/server/modules/products/actions";
-import { getCategories } from "@/server/modules/products/queries";
-import { getStockSummary } from "@/server/modules/stock/queries";
+import { getCategories, getProductsWithTracking } from "@/server/modules/products/queries";
 import { ProductFields } from "./product-fields";
 
 export const metadata: Metadata = { title: "Products" };
 
 export default async function ProductsPage() {
-  const [rows, categories] = await Promise.all([getStockSummary(), getCategories()]);
+  const [rows, categories] = await Promise.all([getProductsWithTracking(), getCategories()]);
 
   return (
     <>
       <PageHeader
         title="Products"
-        description="Your linen catalog with base prices and live stock."
+        description="Your linen catalog with base prices. Each hotel gets its own agreed price."
         actions={
           <>
             <LinkButton href="/admin/products/categories">Categories</LinkButton>
+            <LinkButton href="/admin/products/hotel-items">Hotel&apos;s own items</LinkButton>
             {categories.length > 0 && (
               <Modal trigger="New product" title="New product">
                 <ActionForm action={createProduct} submitLabel="Create product">
-                  <ProductFields categories={categories} showInitialStock />
+                  <ProductFields categories={categories} />
                 </ActionForm>
               </Modal>
             )}
@@ -53,15 +53,12 @@ export default async function ProductsPage() {
                 <Th>Product</Th>
                 <Th>Category</Th>
                 <Th align="right">Base price</Th>
-                <Th align="right">Available</Th>
-                <Th align="right">At hotels</Th>
-                <Th align="right">Washing</Th>
-                <Th align="right">Owned</Th>
+                <Th align="right">At hotels now</Th>
                 <Th />
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ product, buckets, owned }) => (
+              {rows.map(({ product, atHotels }) => (
                 <tr key={product.id}>
                   <Td>
                     <div className="flex items-center gap-3">
@@ -72,11 +69,8 @@ export default async function ProductsPage() {
                   </Td>
                   <Td>{product.category.name}</Td>
                   <Td align="right">{formatTk(product.basePrice)}</Td>
-                  <Td align="right">{buckets.AVAILABLE}</Td>
-                  <Td align="right">{buckets.AT_HOTEL}</Td>
-                  <Td align="right">{buckets.WASHING}</Td>
                   <Td align="right" className="font-semibold">
-                    {owned}
+                    {atHotels}
                   </Td>
                   <Td align="right">
                     <LinkButton href={`/admin/products/${product.id}`} size="sm" variant="ghost">

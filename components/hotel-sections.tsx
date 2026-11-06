@@ -2,32 +2,65 @@ import Link from "next/link";
 import { Photo } from "@/components/photo";
 import { Badge, Empty, Table, Td, Th } from "@/components/ui/layout";
 import { formatDate, formatDateTime } from "@/server/dates";
-import { SERVICE_STATUS_LABEL } from "@/server/labels";
 import { formatTk } from "@/server/money";
 import type { HotelProfile } from "@/server/modules/hotels/queries";
 import { describeDiscount } from "@/server/pricing";
 
-export function HoldingsTable({ holdings }: { holdings: HotelProfile["holdings"] }) {
-  if (holdings.length === 0) return <Empty>No pieces at this hotel right now.</Empty>;
+export function TrackingTable({ tracking }: { tracking: HotelProfile["tracking"] }) {
+  if (tracking.length === 0) return <Empty>Nothing sent to this hotel yet.</Empty>;
   return (
     <Table>
       <thead>
         <tr>
           <Th>Product</Th>
-          <Th align="right">Pieces held</Th>
+          <Th align="right">Sent</Th>
+          <Th align="right">Returned</Th>
+          <Th align="right">Rejected</Th>
+          <Th align="right">At hotel now</Th>
         </tr>
       </thead>
       <tbody>
-        {holdings.map((h) => (
-          <tr key={h.productId}>
+        {tracking.map((t) => (
+          <tr key={t.productId}>
             <Td>
               <div className="flex items-center gap-3">
-                <Photo path={h.photoPath} alt={h.name} size={32} />
-                {h.name}
+                <Photo path={t.photoPath} alt={t.name} size={32} />
+                {t.name}
               </div>
             </Td>
+            <Td align="right">{t.sent}</Td>
+            <Td align="right">{t.returned}</Td>
+            <Td align="right">{t.rejected}</Td>
             <Td align="right" className="font-semibold">
-              {h.held}
+              {t.atHotel}
+            </Td>
+          </tr>
+        ))}
+      </tbody>
+    </Table>
+  );
+}
+
+export function ItemsWithUsTable({ items }: { items: HotelProfile["itemTracking"] }) {
+  if (items.length === 0) return <Empty>No hotel items collected for washing yet.</Empty>;
+  return (
+    <Table>
+      <thead>
+        <tr>
+          <Th>Item</Th>
+          <Th align="right">Collected</Th>
+          <Th align="right">Delivered back</Th>
+          <Th align="right">With us now</Th>
+        </tr>
+      </thead>
+      <tbody>
+        {items.map((t) => (
+          <tr key={t.serviceItemId}>
+            <Td>{t.name}</Td>
+            <Td align="right">{t.collected}</Td>
+            <Td align="right">{t.delivered}</Td>
+            <Td align="right" className="font-semibold">
+              {t.withUs}
             </Td>
           </tr>
         ))}
@@ -70,7 +103,7 @@ export function PricesTable({
         {servicePrices.map((p) => (
           <tr key={p.id}>
             <Td>
-              {p.serviceItem.name} <Badge>washing service</Badge>
+              {p.serviceItem.name} <Badge>washing their item</Badge>
             </Td>
             <Td align="right">-</Td>
             <Td>-</Td>
@@ -98,7 +131,7 @@ export function SendsTable({
       <thead>
         <tr>
           <Th>When</Th>
-          <Th align="right">Products</Th>
+          <Th align="right">Lines</Th>
           <Th align="right">Total</Th>
           <Th>Status</Th>
         </tr>
@@ -111,53 +144,9 @@ export function SendsTable({
                 {formatDateTime(s.createdAt)}
               </Link>
             </Td>
-            <Td align="right">{s._count.lines}</Td>
+            <Td align="right">{s._count.lines + s._count.itemLines}</Td>
             <Td align="right">{formatTk(s.total)}</Td>
             <Td>{s.status === "VOIDED" ? <Badge tone="bad">Voided</Badge> : <Badge tone="good">Active</Badge>}</Td>
-          </tr>
-        ))}
-      </tbody>
-    </Table>
-  );
-}
-
-export function ServiceOrdersTable({
-  orders,
-  href,
-}: {
-  orders: HotelProfile["serviceOrders"];
-  href?: (id: string) => string;
-}) {
-  if (orders.length === 0) return <Empty>No washing service orders yet.</Empty>;
-  return (
-    <Table>
-      <thead>
-        <tr>
-          <Th>Received</Th>
-          <Th>Items</Th>
-          <Th>Status</Th>
-          <Th align="right">Total</Th>
-        </tr>
-      </thead>
-      <tbody>
-        {orders.map((o) => (
-          <tr key={o.id}>
-            <Td>
-              {href ? (
-                <Link href={href(o.id)} className="font-medium hover:text-(--teal)">
-                  {formatDate(o.receivedAt)}
-                </Link>
-              ) : (
-                formatDate(o.receivedAt)
-              )}
-            </Td>
-            <Td>{o.lines.map((l) => `${l.quantity} ${l.serviceItem.name}`).join(", ")}</Td>
-            <Td>
-              <Badge tone={o.status === "DELIVERED" ? "good" : o.status === "CANCELLED" ? "bad" : "warn"}>
-                {SERVICE_STATUS_LABEL[o.status]}
-              </Badge>
-            </Td>
-            <Td align="right">{o.status === "DELIVERED" ? formatTk(o.total) : "-"}</Td>
           </tr>
         ))}
       </tbody>

@@ -19,7 +19,7 @@ export default async function HotelAuditPage({ params, searchParams }: PageProps
     <>
       <PageHeader
         title={`Audit · ${hotel.name}`}
-        description="Every send, return, washing order and payment for this hotel."
+        description="Every send, collection and payment for this hotel."
         actions={
           <>
             <PrintButton />

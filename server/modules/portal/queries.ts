@@ -5,7 +5,7 @@ import { getDueByHotel } from "@/server/modules/ledger/core";
 import type { StatementRange } from "@/server/modules/ledger/statement";
 import { loadHotelProfile } from "@/server/modules/hotels/queries";
 import { findSend } from "@/server/modules/send/queries";
-import { getBucketsByProduct } from "@/server/modules/stock/core";
+import { getProductTracking } from "@/server/modules/tracking/core";
 
 export async function getOwnerDashboard() {
   const user = await requirePermission("own:hotel:view");
@@ -15,10 +15,7 @@ export async function getOwnerDashboard() {
     getDueByHotel(db, hotelIds),
   ]);
   const held = await Promise.all(
-    hotels.map(async (h) => {
-      const buckets = await getBucketsByProduct(db, { hotelId: h.id });
-      return [...buckets.values()].reduce((s, b) => s + b.AT_HOTEL, 0);
-    }),
+    hotels.map(async (h) => (await getProductTracking(db, h.id)).reduce((s, t) => s + t.atHotel, 0)),
   );
   const rows = hotels.map((h, i) => ({ hotel: h, due: dues.get(h.id) ?? 0, piecesHeld: held[i] }));
   return { user, rows, totalDue: rows.reduce((s, r) => s + r.due, 0) };

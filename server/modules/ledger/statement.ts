@@ -19,7 +19,7 @@ export async function buildStatement(hotelId: string, range: StatementRange) {
     db.ledgerEntry.findMany({
       where: { hotelId, date: { gte: from, lt: to } },
       orderBy: [{ date: "asc" }, { createdAt: "asc" }],
-      include: { send: { select: { id: true } }, serviceOrder: { select: { id: true } } },
+      include: { send: { select: { id: true } } },
     }),
     getSumsByHotel(db, { hotelId, date: { lt: to } }),
   ]);

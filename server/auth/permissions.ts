@@ -15,13 +15,11 @@ export const ROLE_PERMISSIONS: Record<Role, readonly string[]> = {
 export type Permission =
   | "admin:access"
   | "catalog:manage"
-  | "stock:manage"
   | "customer:manage"
   | "price:manage"
   | "send:create"
   | "send:void"
   | "return:create"
-  | "service:manage"
   | "payment:manage"
   | "expense:manage"
   | "report:view"

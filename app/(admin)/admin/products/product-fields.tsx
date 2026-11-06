@@ -4,10 +4,9 @@ import { toTkInput } from "@/server/money";
 type Props = {
   categories: { id: string; name: string }[];
   product?: { name: string; categoryId: string; basePrice: number };
-  showInitialStock?: boolean;
 };
 
-export function ProductFields({ categories, product, showInitialStock }: Props) {
+export function ProductFields({ categories, product }: Props) {
   return (
     <>
       <TextField
@@ -38,16 +37,6 @@ export function ProductFields({ categories, product, showInitialStock }: Props) 
         hint="Your standard price. Each hotel gets its own agreed price later."
         required
       />
-      {showInitialStock && (
-        <TextField
-          label="Pieces you own now"
-          name="initialStock"
-          type="number"
-          min={0}
-          placeholder="200"
-          hint="Optional. You can add more stock any time."
-        />
-      )}
       <Field label="Photo" name="photo" hint="JPG, PNG or WebP, up to 2 MB">
         <Input name="photo" type="file" accept="image/jpeg,image/png,image/webp" className="py-2" />
       </Field>

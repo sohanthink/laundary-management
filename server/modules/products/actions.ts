@@ -1,6 +1,5 @@
 "use server";
 
-import { randomUUID } from "node:crypto";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { logAudit } from "@/server/audit";
@@ -45,44 +44,54 @@ const productSchema = z.object({
   name: text("Name"),
   categoryId: z.string().min(1, "Choose a category"),
   basePrice: money("Base price"),
-  initialStock: z.coerce.number().int().min(0).max(100000).optional().default(0),
 });
 
 export async function createProduct(_: ActionState, formData: FormData): Promise<ActionState> {
   const user = await requirePermission("catalog:manage");
   const parsed = parseForm(productSchema, formData);
   if (!parsed.success) return parsed.state;
-  const { name, categoryId, basePrice, initialStock } = parsed.data;
 
   try {
     const photoPath = await saveUpload(formData.get("photo"), "products");
-    await db.$transaction(async (tx) => {
-      const product = await tx.product.create({
-        data: { name, categoryId, basePrice, photoPath },
-      });
-      if (initialStock > 0) {
-        await tx.stockMovement.create({
-          data: {
-            productId: product.id,
-            type: "STOCK_IN",
-            fromState: "NONE",
-            toState: "AVAILABLE",
-            quantity: initialStock,
-            batchId: randomUUID(),
-            note: "Initial stock",
-            createdById: user.id,
-          },
-        });
-      }
-      await logAudit({ userId: user.id, action: "product.create", entity: "Product", entityId: product.id, after: product }, tx);
-    });
+    const product = await db.product.create({ data: { ...parsed.data, photoPath } });
+    await logAudit({ userId: user.id, action: "product.create", entity: "Product", entityId: product.id, after: product });
   } catch (error) {
     return toActionError(error);
   }
-  return done(`Product "${name}" created.`);
+  return done(`Product "${parsed.data.name}" created.`);
 }
 
-const updateProductSchema = productSchema.omit({ initialStock: true }).extend({
+const itemSchema = z.object({ name: text("Name") });
+
+/** Types of the hotel's own items you wash (Curtain, Blanket, ...). */
+export async function createServiceItem(_: ActionState, formData: FormData): Promise<ActionState> {
+  const user = await requirePermission("catalog:manage");
+  const parsed = parseForm(itemSchema, formData);
+  if (!parsed.success) return parsed.state;
+  try {
+    const item = await db.serviceItem.create({ data: parsed.data });
+    await logAudit({ userId: user.id, action: "serviceItem.create", entity: "ServiceItem", entityId: item.id, after: item });
+  } catch (error) {
+    return toActionError(error);
+  }
+  return done(`"${parsed.data.name}" added. Set its washing price on each hotel's prices page.`);
+}
+
+export async function updateServiceItem(_: ActionState, formData: FormData): Promise<ActionState> {
+  const user = await requirePermission("catalog:manage");
+  const parsed = parseForm(itemSchema.extend({ id, isActive: checkbox }), formData);
+  if (!parsed.success) return parsed.state;
+  const { id: itemId, ...data } = parsed.data;
+  try {
+    const after = await db.serviceItem.update({ where: { id: itemId }, data });
+    await logAudit({ userId: user.id, action: "serviceItem.update", entity: "ServiceItem", entityId: itemId, after });
+  } catch (error) {
+    return toActionError(error);
+  }
+  return done("Item updated.");
+}
+
+const updateProductSchema = productSchema.extend({
   id,
   isActive: checkbox,
 });

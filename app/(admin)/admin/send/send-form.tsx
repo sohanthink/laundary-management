@@ -14,19 +14,37 @@ type Row = {
   category: string;
   basePrice: number;
   agreedPrice: number;
-  available: number;
+  atHotel: number;
 };
 
+type ItemRow = { serviceItemId: string; name: string; price: number; withUs: number };
+
 const cellInput = `${inputClass} h-10 w-24 text-right`;
+const th = "px-2 py-2";
 
 function money(value: string) {
   return value && isMoneyInput(value) ? toPoisha(value) : 0;
 }
 
-export function SendForm({ hotelId, rows, due }: { hotelId: string; rows: Row[]; due: number }) {
+function count(value: string | undefined) {
+  return Math.max(0, Math.floor(Number(value || 0)));
+}
+
+export function SendForm({
+  hotelId,
+  rows,
+  itemRows,
+  due,
+}: {
+  hotelId: string;
+  rows: Row[];
+  itemRows: ItemRow[];
+  due: number;
+}) {
   const [state, action, pending] = useActionState(createSend, undefined);
   const [qty, setQty] = useState<Record<string, string>>({});
   const [extra, setExtra] = useState<Record<string, string>>({});
+  const [itemQty, setItemQty] = useState<Record<string, string>>({});
   const [whole, setWhole] = useState("");
   const [reason, setReason] = useState("");
   const [payment, setPayment] = useState("");
@@ -40,18 +58,19 @@ export function SendForm({ hotelId, rows, due }: { hotelId: string; rows: Row[];
           basePrice: r.basePrice,
           agreedPrice: r.agreedPrice,
           extraPerPiece: money(extra[r.productId] ?? ""),
-          quantity: Math.max(0, Math.floor(Number(qty[r.productId] || 0))),
+          quantity: count(qty[r.productId]),
         })),
         money(whole),
+        itemRows.map((r) => ({ price: r.price, quantity: count(itemQty[r.serviceItemId]) })),
       ),
-    [rows, qty, extra, whole],
+    [rows, itemRows, qty, extra, itemQty, whole],
   );
 
   const paid = money(payment);
   const dueAfter = due + totals.total - paid;
   const hasExtra = totals.extraDiscountTotal > 0;
-  const overStock = rows.some((r) => Number(qty[r.productId] || 0) > r.available);
-  const anyQuantity = rows.some((r) => Number(qty[r.productId] || 0) > 0);
+  const pieces = rows.reduce((s, r) => s + count(qty[r.productId]), 0);
+  const itemPieces = itemRows.reduce((s, r) => s + count(itemQty[r.serviceItemId]), 0);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -62,10 +81,14 @@ export function SendForm({ hotelId, rows, due }: { hotelId: string; rows: Row[];
       JSON.stringify(
         rows.map((r) => ({
           productId: r.productId,
-          quantity: Math.max(0, Math.floor(Number(qty[r.productId] || 0))),
+          quantity: count(qty[r.productId]),
           extraPerPiece: extra[r.productId] ?? "",
         })),
       ),
+    );
+    formData.set(
+      "items",
+      JSON.stringify(itemRows.map((r) => ({ serviceItemId: r.serviceItemId, quantity: count(itemQty[r.serviceItemId]) }))),
     );
     formData.set("wholeDiscount", whole);
     formData.set("discountReason", reason);
@@ -77,71 +100,117 @@ export function SendForm({ hotelId, rows, due }: { hotelId: string; rows: Row[];
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[820px] text-sm">
-          <thead>
-            <tr className="text-left text-xs uppercase tracking-wider text-(--muted)">
-              <th className="px-2 py-2">Product</th>
-              <th className="px-2 py-2 text-right">Available</th>
-              <th className="px-2 py-2 text-right">Base</th>
-              <th className="px-2 py-2 text-right">Agreed</th>
-              <th className="px-2 py-2 text-right">Extra disc. / pc</th>
-              <th className="px-2 py-2 text-right">Final</th>
-              <th className="px-2 py-2 text-right">Qty</th>
-              <th className="px-2 py-2 text-right">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => {
-              const line = totals.lines[i];
-              const tooMany = Number(qty[r.productId] || 0) > r.available;
-              return (
-                <tr key={r.productId} className="border-t border-(--line)">
-                  <td className="px-2 py-2">
-                    <p className="font-medium">{r.name}</p>
-                    <p className="text-xs text-(--muted)">{r.category}</p>
-                  </td>
-                  <td className={`px-2 py-2 text-right tabular-nums ${r.available === 0 ? "text-red-600" : ""}`}>
-                    {r.available}
-                  </td>
-                  <td className="px-2 py-2 text-right tabular-nums text-(--muted) line-through decoration-(--muted)/50">
-                    {formatTk(r.basePrice)}
-                  </td>
-                  <td className="px-2 py-2 text-right tabular-nums">{formatTk(r.agreedPrice)}</td>
+      {rows.length > 0 && (
+        <div className="overflow-x-auto">
+          <p className="mb-2 text-sm font-semibold">Your products</p>
+          <table className="w-full min-w-[820px] text-sm">
+            <thead>
+              <tr className="text-left text-xs uppercase tracking-wider text-(--muted)">
+                <th className={th}>Product</th>
+                <th className={`${th} text-right`}>At hotel now</th>
+                <th className={`${th} text-right`}>Base</th>
+                <th className={`${th} text-right`}>Agreed</th>
+                <th className={`${th} text-right`}>Extra disc. / pc</th>
+                <th className={`${th} text-right`}>Final</th>
+                <th className={`${th} text-right`}>Qty</th>
+                <th className={`${th} text-right`}>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => {
+                const line = totals.lines[i];
+                return (
+                  <tr key={r.productId} className="border-t border-(--line)">
+                    <td className="px-2 py-2">
+                      <p className="font-medium">{r.name}</p>
+                      <p className="text-xs text-(--muted)">{r.category}</p>
+                    </td>
+                    <td className="px-2 py-2 text-right tabular-nums text-(--muted)">{r.atHotel}</td>
+                    <td className="px-2 py-2 text-right tabular-nums text-(--muted) line-through decoration-(--muted)/50">
+                      {formatTk(r.basePrice)}
+                    </td>
+                    <td className="px-2 py-2 text-right tabular-nums">{formatTk(r.agreedPrice)}</td>
+                    <td className="px-2 py-2 text-right">
+                      <input
+                        className={cellInput}
+                        inputMode="decimal"
+                        placeholder="0"
+                        value={extra[r.productId] ?? ""}
+                        onChange={(e) => setExtra({ ...extra, [r.productId]: e.target.value })}
+                        aria-label={`Extra discount per piece for ${r.name}`}
+                      />
+                    </td>
+                    <td className="px-2 py-2 text-right font-medium tabular-nums">{formatTk(line.finalUnitPrice)}</td>
+                    <td className="px-2 py-2 text-right">
+                      <input
+                        className={cellInput}
+                        type="number"
+                        min={0}
+                        placeholder="0"
+                        value={qty[r.productId] ?? ""}
+                        onChange={(e) => setQty({ ...qty, [r.productId]: e.target.value })}
+                        aria-label={`Quantity of ${r.name}`}
+                      />
+                    </td>
+                    <td className="px-2 py-2 text-right font-semibold tabular-nums">{formatTk(line.lineTotal)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {itemRows.length > 0 && (
+        <div className="overflow-x-auto">
+          <p className="mb-2 text-sm font-semibold">Hotel&apos;s own items washed (delivering back)</p>
+          <table className="w-full min-w-[560px] text-sm">
+            <thead>
+              <tr className="text-left text-xs uppercase tracking-wider text-(--muted)">
+                <th className={th}>Item</th>
+                <th className={`${th} text-right`}>With us now</th>
+                <th className={`${th} text-right`}>Price / pc</th>
+                <th className={`${th} text-right`}>Qty</th>
+                <th className={`${th} text-right`}>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {itemRows.map((r, i) => (
+                <tr key={r.serviceItemId} className="border-t border-(--line)">
+                  <td className="px-2 py-2 font-medium">{r.name}</td>
+                  <td className="px-2 py-2 text-right tabular-nums text-(--muted)">{r.withUs}</td>
+                  <td className="px-2 py-2 text-right tabular-nums">{formatTk(r.price)}</td>
                   <td className="px-2 py-2 text-right">
-                    <input
-                      className={cellInput}
-                      inputMode="decimal"
-                      placeholder="0"
-                      value={extra[r.productId] ?? ""}
-                      onChange={(e) => setExtra({ ...extra, [r.productId]: e.target.value })}
-                      aria-label={`Extra discount per piece for ${r.name}`}
-                    />
-                  </td>
-                  <td className="px-2 py-2 text-right font-medium tabular-nums">
-                    {formatTk(line.finalUnitPrice)}
-                  </td>
-                  <td className="px-2 py-2 text-right">
-                    <input
-                      className={`${cellInput} ${tooMany ? "border-red-400 ring-4 ring-red-100" : ""}`}
-                      type="number"
-                      min={0}
-                      max={r.available}
-                      placeholder="0"
-                      value={qty[r.productId] ?? ""}
-                      onChange={(e) => setQty({ ...qty, [r.productId]: e.target.value })}
-                      aria-label={`Quantity of ${r.name}`}
-                    />
+                    <div className="flex items-center justify-end gap-2">
+                      {r.withUs > 0 && (
+                        <button
+                          type="button"
+                          className="text-xs font-medium text-(--teal) hover:underline"
+                          onClick={() => setItemQty({ ...itemQty, [r.serviceItemId]: String(r.withUs) })}
+                        >
+                          All
+                        </button>
+                      )}
+                      <input
+                        className={cellInput}
+                        type="number"
+                        min={0}
+                        placeholder="0"
+                        value={itemQty[r.serviceItemId] ?? ""}
+                        onChange={(e) => setItemQty({ ...itemQty, [r.serviceItemId]: e.target.value })}
+                        aria-label={`Washed ${r.name} delivered`}
+                      />
+                    </div>
                   </td>
                   <td className="px-2 py-2 text-right font-semibold tabular-nums">
-                    {formatTk(line.lineTotal)}
+                    {formatTk(totals.itemLines[i].lineTotal)}
                   </td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="space-y-4">
@@ -171,6 +240,8 @@ export function SendForm({ hotelId, rows, due }: { hotelId: string; rows: Row[];
         </div>
 
         <div className="space-y-3 rounded-2xl bg-(--paper) p-5 text-sm">
+          {totals.productsSubtotal > 0 && <Line label={`Products (${pieces} pcs)`} value={formatTk(totals.productsSubtotal)} />}
+          {totals.itemsSubtotal > 0 && <Line label={`Their items washed (${itemPieces} pcs)`} value={formatTk(totals.itemsSubtotal)} />}
           <Line label="Subtotal" value={formatTk(totals.subtotal)} />
           {totals.wholeDiscount > 0 && <Line label="Extra discount (whole)" value={`-${formatTk(totals.wholeDiscount)}`} />}
           {totals.agreedDiscountTotal > 0 && (
@@ -200,7 +271,7 @@ export function SendForm({ hotelId, rows, due }: { hotelId: string; rows: Row[];
 
       <FormMessage state={state} />
       <div className="flex justify-end">
-        <Button type="submit" disabled={pending || !anyQuantity || overStock}>
+        <Button type="submit" disabled={pending || pieces + itemPieces === 0}>
           {pending ? "Saving..." : "Confirm & send"}
         </Button>
       </div>

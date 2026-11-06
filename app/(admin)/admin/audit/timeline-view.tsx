@@ -4,22 +4,18 @@ import { inputClass } from "@/components/ui/field";
 import { Badge, Card, Empty, Table, Td, Th } from "@/components/ui/layout";
 import { formatDateTime, rangeFromParams } from "@/server/dates";
 import { formatTk } from "@/server/money";
-import { getTimeline, type TimelineKind } from "@/server/modules/reports/queries";
+import { getTimeline, type TimelineKind } from "@/server/modules/reports/timeline";
 
 const KINDS: { value: TimelineKind; label: string }[] = [
   { value: "SEND", label: "Sends" },
-  { value: "RETURN", label: "Returns" },
-  { value: "WRITE_OFF", label: "Lost / damaged" },
-  { value: "SERVICE", label: "Washing service" },
+  { value: "COLLECT", label: "Collections" },
   { value: "PAYMENT", label: "Payments" },
   { value: "ADJUSTMENT", label: "Adjustments" },
 ];
 
 const TONE: Record<TimelineKind, "info" | "default" | "bad" | "warn" | "good"> = {
   SEND: "info",
-  RETURN: "default",
-  WRITE_OFF: "bad",
-  SERVICE: "warn",
+  COLLECT: "default",
   PAYMENT: "good",
   ADJUSTMENT: "warn",
 };

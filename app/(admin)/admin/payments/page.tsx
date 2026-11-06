@@ -9,7 +9,7 @@ import { METHOD_LABEL } from "@/server/labels";
 import { formatTk } from "@/server/money";
 import { recordPayment } from "@/server/modules/payments/actions";
 import { listPayments } from "@/server/modules/payments/queries";
-import { getActiveHotelOptions } from "@/server/modules/stock/queries";
+import { getActiveHotelOptions } from "@/server/modules/hotels/queries";
 import { PaymentFields } from "./payment-fields";
 
 export const metadata: Metadata = { title: "Payments" };

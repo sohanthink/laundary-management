@@ -12,13 +12,13 @@ export default async function AdminDashboardPage() {
     <>
       <PageHeader
         title="Dashboard"
-        description="Today's picture of stock, money and activity."
+        description="Today's picture of pieces, money and activity."
         actions={
           <>
             <LinkButton href="/admin/send" variant="primary">
               Send
             </LinkButton>
-            <LinkButton href="/admin/return">Return</LinkButton>
+            <LinkButton href="/admin/collect">Collect</LinkButton>
             <LinkButton href="/admin/payments">Payment</LinkButton>
           </>
         }
@@ -37,14 +37,14 @@ export default async function AdminDashboardPage() {
       </div>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <Stat label="Owned" value={d.owned} />
-        <Stat label="Available" value={d.stock.AVAILABLE} />
-        <Stat label="At hotels" value={d.stock.AT_HOTEL} />
-        <Stat label="Washing" value={d.stock.WASHING} />
+        <Stat label="Your pieces at hotels" value={<Link href="/admin/tracking">{d.pieces.atHotels}</Link>} />
+        <Stat label="Their items with us" value={<Link href="/admin/tracking">{d.pieces.itemsWithUs}</Link>} />
+        <Stat label="Pieces sent this month" value={d.pieces.sentThisMonth} />
+        <Stat label="Returned this month" value={d.pieces.returnedThisMonth} />
         <Stat
-          label="Open washing orders"
-          value={<Link href="/admin/services">{d.openServices}</Link>}
-          tone={d.openServices > 0 ? "warn" : "default"}
+          label="Rejected this month"
+          value={d.pieces.rejectedThisMonth}
+          tone={d.pieces.rejectedThisMonth > 0 ? "warn" : "default"}
         />
       </div>
 

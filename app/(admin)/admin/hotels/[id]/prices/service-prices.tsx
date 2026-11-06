@@ -18,11 +18,12 @@ export async function ServicePricesCard({ hotelId }: { hotelId: string }) {
   const addable = items.filter((i) => !priced.has(i.id));
 
   return (
-    <Card title="Washing service prices (hotel's own items)">
+    <Card title="Washing prices for the hotel's own items">
       <p className="mb-4 text-sm text-(--muted)">
-        Price per piece for washing items that belong to the hotel. Manage the item list on the{" "}
-        <Link href="/admin/services/items" className="text-(--teal) underline">
-          service items page
+        Price per piece for washing items that belong to the hotel. These appear on the Send and Collect screens.
+        Manage the item types on the{" "}
+        <Link href="/admin/products/hotel-items" className="text-(--teal) underline">
+          hotel&apos;s own items page
         </Link>
         .
       </p>

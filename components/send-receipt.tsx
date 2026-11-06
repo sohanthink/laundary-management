@@ -31,34 +31,64 @@ export function SendReceipt({ send }: { send: SendWithDetails }) {
         </div>
       </div>
 
-      <Table>
-        <thead>
-          <tr>
-            <Th>Product</Th>
-            <Th align="right">Qty</Th>
-            <Th align="right">Base</Th>
-            <Th align="right">Agreed</Th>
-            <Th align="right">Extra / pc</Th>
-            <Th align="right">Final</Th>
-            <Th align="right">Total</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {send.lines.map((l) => (
-            <tr key={l.id}>
-              <Td>{l.product.name}</Td>
-              <Td align="right">{l.quantity}</Td>
-              <Td align="right">{formatTk(l.basePriceSnapshot)}</Td>
-              <Td align="right">{formatTk(l.agreedPriceSnapshot)}</Td>
-              <Td align="right">{l.extraDiscountPerPiece ? `-${formatTk(l.extraDiscountPerPiece)}` : "-"}</Td>
-              <Td align="right">{formatTk(l.finalUnitPrice)}</Td>
-              <Td align="right" className="font-semibold">
-                {formatTk(l.lineTotal)}
-              </Td>
+      {send.lines.length > 0 && (
+        <Table>
+          <thead>
+            <tr>
+              <Th>Product</Th>
+              <Th align="right">Qty</Th>
+              <Th align="right">Base</Th>
+              <Th align="right">Agreed</Th>
+              <Th align="right">Extra / pc</Th>
+              <Th align="right">Final</Th>
+              <Th align="right">Total</Th>
             </tr>
-          ))}
-        </tbody>
-      </Table>
+          </thead>
+          <tbody>
+            {send.lines.map((l) => (
+              <tr key={l.id}>
+                <Td>{l.product.name}</Td>
+                <Td align="right">{l.quantity}</Td>
+                <Td align="right">{formatTk(l.basePriceSnapshot)}</Td>
+                <Td align="right">{formatTk(l.agreedPriceSnapshot)}</Td>
+                <Td align="right">{l.extraDiscountPerPiece ? `-${formatTk(l.extraDiscountPerPiece)}` : "-"}</Td>
+                <Td align="right">{formatTk(l.finalUnitPrice)}</Td>
+                <Td align="right" className="font-semibold">
+                  {formatTk(l.lineTotal)}
+                </Td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      )}
+
+      {send.itemLines.length > 0 && (
+        <div>
+          <p className="mb-1 text-sm font-semibold">Hotel&apos;s own items washed</p>
+          <Table>
+            <thead>
+              <tr>
+                <Th>Item</Th>
+                <Th align="right">Qty</Th>
+                <Th align="right">Price</Th>
+                <Th align="right">Total</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {send.itemLines.map((l) => (
+                <tr key={l.id}>
+                  <Td>{l.serviceItem.name}</Td>
+                  <Td align="right">{l.quantity}</Td>
+                  <Td align="right">{formatTk(l.unitPriceSnapshot)}</Td>
+                  <Td align="right" className="font-semibold">
+                    {formatTk(l.lineTotal)}
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </div>
+      )}
 
       <div className="ml-auto max-w-sm space-y-2 text-sm">
         <Row label="Subtotal" value={formatTk(send.subtotal)} />

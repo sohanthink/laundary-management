@@ -1,12 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DateRangeForm } from "@/components/date-range-form";
-import {
-  HoldingsTable,
-  PricesTable,
-  SendsTable,
-  ServiceOrdersTable,
-} from "@/components/hotel-sections";
+import { ItemsWithUsTable, PricesTable, SendsTable, TrackingTable } from "@/components/hotel-sections";
 import { PrintButton } from "@/components/print-button";
 import { StatementTable } from "@/components/statement-table";
 import { LinkButton } from "@/components/ui/button";
@@ -23,7 +18,7 @@ export default async function OwnerHotelPage({ params, searchParams }: PageProps
   const range = rangeFromParams(sp.from, sp.to);
   const profile = await getOwnerHotel(id, range);
   if (!profile) notFound();
-  const { hotel, prices, servicePrices, holdings, due, statement, sends, serviceOrders } = profile;
+  const { hotel, prices, servicePrices, tracking, itemTracking, due, statement, sends } = profile;
 
   return (
     <>
@@ -37,28 +32,31 @@ export default async function OwnerHotelPage({ params, searchParams }: PageProps
           </>
         }
       />
-      <div className="mb-6 grid gap-4 sm:grid-cols-2">
+      <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <Stat label="Current due" value={formatTk(due)} tone={due > 0 ? "warn" : "good"} />
-        <Stat label="Our pieces with you" value={holdings.reduce((s, h) => s + h.held, 0)} />
+        <Stat label="Our pieces with you" value={tracking.reduce((s, t) => s + t.atHotel, 0)} />
+        <Stat label="Your items with us" value={itemTracking.reduce((s, t) => s + t.withUs, 0)} />
       </div>
       <div className="space-y-6">
         <Card title="Statement" actions={<DateRangeForm from={range.from} to={range.to} />}>
           <StatementTable statement={statement} sendHref={(sendId) => `/portal/sends/${sendId}`} />
         </Card>
         <div className="grid gap-6 lg:grid-cols-2">
-          <Card title="Pieces with you">
-            <HoldingsTable holdings={holdings} />
+          <Card title="Our products: sent and returned">
+            <TrackingTable tracking={tracking} />
+          </Card>
+          <Card title="Your items we are washing">
+            <ItemsWithUsTable items={itemTracking} />
+          </Card>
+        </div>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card title="Agreed prices">
+            <PricesTable prices={prices} servicePrices={servicePrices} />
           </Card>
           <Card title="Recent deliveries">
             <SendsTable sends={sends} href={(sendId) => `/portal/sends/${sendId}`} />
           </Card>
         </div>
-        <Card title="Agreed prices">
-          <PricesTable prices={prices} servicePrices={servicePrices} />
-        </Card>
-        <Card title="Washing service">
-          <ServiceOrdersTable orders={serviceOrders} />
-        </Card>
       </div>
     </>
   );

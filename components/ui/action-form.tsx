@@ -69,7 +69,8 @@ export function ActionForm({
 
   return (
     <FormStateContext.Provider value={state}>
-      <form ref={formRef} onSubmit={handleSubmit} className={className}>
+      {/* `action` handles submits made before the page finishes loading; after that, onSubmit takes over. */}
+      <form ref={formRef} action={formAction} onSubmit={handleSubmit} className={className}>
         {children}
         {/* When the modal closes, its toast shows the success message instead. */}
         <FormMessage state={closesModal && state?.ok ? undefined : state} />

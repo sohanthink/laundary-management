@@ -51,6 +51,18 @@ describe("calculateSend", () => {
     expect(result.extraDiscountTotal).toBe(10000 + 5000);
   });
 
+  it("adds the hotel's own washed items to the total", () => {
+    const result = calculateSend(
+      [{ basePrice: 2000, agreedPrice: 1800, extraPerPiece: 0, quantity: 10 }],
+      1000,
+      [{ price: 3000, quantity: 10 }],
+    );
+    expect(result.productsSubtotal).toBe(18000);
+    expect(result.itemsSubtotal).toBe(30000);
+    expect(result.subtotal).toBe(48000);
+    expect(result.total).toBe(47000);
+  });
+
   it("caps the whole-send discount at the subtotal", () => {
     const result = calculateSend(
       [{ basePrice: 1000, agreedPrice: 1000, extraPerPiece: 0, quantity: 1 }],

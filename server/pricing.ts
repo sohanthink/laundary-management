@@ -43,8 +43,14 @@ export type SendLineResult = SendLineInput & {
   lineTotal: number;
 };
 
+/** Hotel's own items washed and delivered back with this send. */
+export type ItemLineInput = { price: number; quantity: number };
+
 export type SendTotals = {
   lines: SendLineResult[];
+  itemLines: (ItemLineInput & { lineTotal: number })[];
+  productsSubtotal: number;
+  itemsSubtotal: number;
   subtotal: number;
   wholeDiscount: number;
   total: number;
@@ -54,7 +60,11 @@ export type SendTotals = {
   extraDiscountTotal: number;
 };
 
-export function calculateSend(lines: SendLineInput[], wholeDiscount: number): SendTotals {
+export function calculateSend(
+  lines: SendLineInput[],
+  wholeDiscount: number,
+  items: ItemLineInput[] = [],
+): SendTotals {
   const results = lines.map((line) => {
     const final = finalUnitPrice(line.agreedPrice, line.extraPerPiece);
     return {
@@ -64,10 +74,16 @@ export function calculateSend(lines: SendLineInput[], wholeDiscount: number): Se
       lineTotal: final * line.quantity,
     };
   });
-  const subtotal = results.reduce((sum, l) => sum + l.lineTotal, 0);
+  const itemLines = items.map((item) => ({ ...item, lineTotal: item.price * item.quantity }));
+  const productsSubtotal = results.reduce((sum, l) => sum + l.lineTotal, 0);
+  const itemsSubtotal = itemLines.reduce((sum, l) => sum + l.lineTotal, 0);
+  const subtotal = productsSubtotal + itemsSubtotal;
   const whole = Math.min(Math.max(0, wholeDiscount), subtotal);
   return {
     lines: results,
+    itemLines,
+    productsSubtotal,
+    itemsSubtotal,
     subtotal,
     wholeDiscount: whole,
     total: subtotal - whole,

@@ -11,14 +11,19 @@ export const metadata: Metadata = { title: "Send" };
 export default async function SendPage({ searchParams }: PageProps<"/admin/send">) {
   const { hotel: hotelParam } = await searchParams;
   const hotelId = typeof hotelParam === "string" ? hotelParam : undefined;
-  const { hotels, hotel, rows, due } = await getSendScreen(hotelId);
+  const { hotels, hotel, rows, itemRows, due } = await getSendScreen(hotelId);
 
   return (
     <>
       <PageHeader
         title="Send to hotel"
-        description="Clean pieces leave your store. The hotel is charged per piece at its agreed price."
-        actions={<LinkButton href="/admin/send/history">Send history</LinkButton>}
+        description="Your clean products and the hotel's own washed items, charged at the agreed prices."
+        actions={
+          <>
+            {hotel && <LinkButton href={`/admin/collect?hotel=${hotel.id}`}>Collect from this hotel</LinkButton>}
+            <LinkButton href="/admin/send/history">Send history</LinkButton>
+          </>
+        }
       />
       <Card>
         <div className="mb-6">
@@ -26,16 +31,16 @@ export default async function SendPage({ searchParams }: PageProps<"/admin/send"
         </div>
         {!hotel ? (
           <Empty>Choose a hotel to see its agreed products.</Empty>
-        ) : rows.length === 0 ? (
+        ) : rows.length === 0 && itemRows.length === 0 ? (
           <Empty>
-            {hotel.name} has no agreed products yet.{" "}
+            {hotel.name} has no agreed prices yet.{" "}
             <Link href={`/admin/hotels/${hotel.id}/prices`} className="text-(--teal) underline">
               Set up its deal
             </Link>{" "}
             first.
           </Empty>
         ) : (
-          <SendForm key={hotel.id} hotelId={hotel.id} rows={rows} due={due} />
+          <SendForm key={hotel.id} hotelId={hotel.id} rows={rows} itemRows={itemRows} due={due} />
         )}
       </Card>
     </>

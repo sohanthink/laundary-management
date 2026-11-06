@@ -23,14 +23,22 @@ enum StockState {
   WRITTEN_OFF
 }
 
+// STOCK_IN, WASHED, LOST and DAMAGED are no longer created (stock is managed by hand),
+// but stay so older rows remain readable.
 enum MovementType {
   STOCK_IN
   SEND
   SEND_VOID
   RETURN
+  REJECT
   WASHED
   LOST
   DAMAGED
+}
+
+enum HotelItemMovementType {
+  COLLECTED
+  DELIVERED
 }
 
 enum DiscountType {
@@ -54,13 +62,6 @@ enum PaymentMethod {
 enum RecordStatus {
   ACTIVE
   VOIDED
-}
-
-enum ServiceStatus {
-  RECEIVED
-  WASHED
-  DELIVERED
-  CANCELLED
 }
 
 // ---------- Users and auth ----------
@@ -194,7 +195,7 @@ model Hotel {
   servicePrices  HotelServicePrice[]
   sends          Send[]
   stockMovements StockMovement[]
-  serviceOrders  ServiceOrder[]
+  itemMovements  HotelItemMovement[]
   ledgerEntries  LedgerEntry[]
 
   @@index([customerId])
@@ -235,8 +236,9 @@ model Send {
   createdById    String
   createdAt      DateTime     @default(now())
 
-  hotel          Hotel           @relation(fields: [hotelId], references: [id])
+  hotel          Hotel               @relation(fields: [hotelId], references: [id])
   lines          SendLine[]
+  itemLines      HotelItemMovement[]
   stockMovements StockMovement[]
   ledgerEntries  LedgerEntry[]
 
@@ -258,15 +260,15 @@ model SendLine {
   product Product @relation(fields: [productId], references: [id])
 }
 
-// ---------- Washing service (hotel-owned items) ----------
+// ---------- Hotel's own items we wash (curtains, blankets, ...) ----------
 
 model ServiceItem {
-  id         String              @id @default(cuid())
-  name       String              @unique
-  isActive   Boolean             @default(true)
-  createdAt  DateTime            @default(now())
-  prices     HotelServicePrice[]
-  orderLines ServiceOrderLine[]
+  id        String              @id @default(cuid())
+  name      String              @unique
+  isActive  Boolean             @default(true)
+  createdAt DateTime            @default(now())
+  prices    HotelServicePrice[]
+  movements HotelItemMovement[]
 }
 
 model HotelServicePrice {
@@ -284,35 +286,28 @@ model HotelServicePrice {
   @@index([hotelId, serviceItemId, validTo])
 }
 
-model ServiceOrder {
-  id          String        @id @default(cuid())
-  hotelId     String
-  status      ServiceStatus @default(RECEIVED)
-  note        String?
-  total       Int           @default(0)
-  receivedAt  DateTime      @default(now())
-  washedAt    DateTime?
-  deliveredAt DateTime?
-  createdById String
-
-  hotel         Hotel              @relation(fields: [hotelId], references: [id])
-  lines         ServiceOrderLine[]
-  ledgerEntries LedgerEntry[]
-
-  @@index([hotelId, receivedAt])
-}
-
-model ServiceOrderLine {
-  id                String @id @default(cuid())
-  serviceOrderId    String
+// COLLECTED on the Collect screen; DELIVERED (with price) as part of a Send.
+// Items with us = collected - delivered (delivered rows of voided sends don't count).
+model HotelItemMovement {
+  id                String                @id @default(cuid())
+  hotelId           String
   serviceItemId     String
+  type              HotelItemMovementType
   quantity          Int
-  // filled in when the order is delivered
-  unitPriceSnapshot Int    @default(0)
-  lineTotal         Int    @default(0)
+  unitPriceSnapshot Int                   @default(0)
+  lineTotal         Int                   @default(0)
+  sendId            String?
+  batchId           String
+  note              String?
+  createdById       String
+  createdAt         DateTime              @default(now())
 
-  serviceOrder ServiceOrder @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade)
-  serviceItem  ServiceItem  @relation(fields: [serviceItemId], references: [id])
+  hotel       Hotel       @relation(fields: [hotelId], references: [id])
+  serviceItem ServiceItem @relation(fields: [serviceItemId], references: [id])
+  send        Send?       @relation(fields: [sendId], references: [id])
+
+  @@index([hotelId, serviceItemId])
+  @@index([batchId])
 }
 
 // ---------- Money ----------
@@ -328,15 +323,15 @@ model LedgerEntry {
   method         PaymentMethod?
   note           String?
   sendId         String?
-  serviceOrderId String?
+  // groups a credit with the Collect action that created it
+  batchId        String?
   status         RecordStatus   @default(ACTIVE)
   voidReason     String?
   createdById    String
   createdAt      DateTime       @default(now())
 
-  hotel        Hotel         @relation(fields: [hotelId], references: [id])
-  send         Send?         @relation(fields: [sendId], references: [id])
-  serviceOrder ServiceOrder? @relation(fields: [serviceOrderId], references: [id])
+  hotel Hotel @relation(fields: [hotelId], references: [id])
+  send  Send? @relation(fields: [sendId], references: [id])
 
   @@index([hotelId, date])
   @@index([type, date])

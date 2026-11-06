@@ -78,3 +78,21 @@ export const checkbox = z
   .transform((v) => v === "on" || v === "true");
 
 export const id = z.string().min(1);
+
+/** A hidden field holding a JSON array (table rows built on the client). */
+export function jsonArray<T extends z.ZodType>(item: T) {
+  return z
+    .string()
+    .optional()
+    .transform((value, ctx): z.infer<T>[] => {
+      if (!value) return [];
+      try {
+        return z.array(item).parse(JSON.parse(value));
+      } catch {
+        ctx.addIssue({ code: "custom", message: "Invalid rows. Reload the page and try again." });
+        return z.NEVER;
+      }
+    });
+}
+
+export const quantity = z.number().int().min(0).max(100000);

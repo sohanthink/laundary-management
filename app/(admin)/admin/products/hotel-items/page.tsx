@@ -3,25 +3,25 @@ import { ActionForm } from "@/components/ui/action-form";
 import { LinkButton } from "@/components/ui/button";
 import { Input, TextField } from "@/components/ui/field";
 import { Card, Empty, PageHeader } from "@/components/ui/layout";
-import { createServiceItem, updateServiceItem } from "@/server/modules/services/actions";
-import { getServiceItems } from "@/server/modules/services/queries";
+import { createServiceItem, updateServiceItem } from "@/server/modules/products/actions";
+import { getServiceItems } from "@/server/modules/products/queries";
 
-export const metadata: Metadata = { title: "Service items" };
+export const metadata: Metadata = { title: "Hotel's own items" };
 
-export default async function ServiceItemsPage() {
+export default async function HotelItemsPage() {
   const items = await getServiceItems();
 
   return (
     <>
       <PageHeader
-        title="Service items"
-        description="Types of hotel-owned items you wash, for example Curtain, Blanket, Uniform."
-        actions={<LinkButton href="/admin/services">Back</LinkButton>}
+        title="Hotel's own items"
+        description="Types of items that belong to hotels and that you wash, for example Curtain, Blanket, Uniform. Set the price per hotel on its prices page."
+        actions={<LinkButton href="/admin/products">Back to products</LinkButton>}
       />
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-        <Card title="All items">
+        <Card title="All item types">
           {items.length === 0 ? (
-            <Empty>No items yet.</Empty>
+            <Empty>No item types yet.</Empty>
           ) : (
             <ul className="space-y-3">
               {items.map((item) => (
@@ -44,8 +44,8 @@ export default async function ServiceItemsPage() {
             </ul>
           )}
         </Card>
-        <Card title="New item">
-          <ActionForm action={createServiceItem} submitLabel="Add item">
+        <Card title="New item type">
+          <ActionForm action={createServiceItem} submitLabel="Add">
             <TextField label="Name" name="name" placeholder="Curtain" required />
           </ActionForm>
         </Card>
