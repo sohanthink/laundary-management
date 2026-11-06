@@ -4,12 +4,15 @@ import { Photo } from "@/components/photo";
 import { ActionForm } from "@/components/ui/action-form";
 import { Badge, Card, Empty, PageHeader, Table, Td, Th } from "@/components/ui/layout";
 import { Modal } from "@/components/ui/modal";
-import { formatTk } from "@/server/money";
+import { formatMoney } from "@/server/money";
 import { createCustomer } from "@/server/modules/customers/actions";
 import { listCustomers } from "@/server/modules/customers/queries";
 import { CustomerFields } from "./fields";
+import { getT } from "@/server/i18n";
 
-export const metadata: Metadata = { title: "Customers" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())("Customers") };
+}
 
 export default async function CustomersPage() {
   const customers = await listCustomers();
@@ -59,7 +62,7 @@ export default async function CustomersPage() {
                   <Td>{c.phone}</Td>
                   <Td align="right">{c.hotels.length}</Td>
                   <Td align="right" className="font-semibold">
-                    {formatTk(c.totalDue)}
+                    {formatMoney(c.totalDue)}
                   </Td>
                   <Td>
                     {c.user.isActive ? <Badge tone="good">Active</Badge> : <Badge tone="bad">Disabled</Badge>}

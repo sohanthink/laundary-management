@@ -1,7 +1,7 @@
 import "server-only";
 import { requirePermission } from "@/server/auth/dal";
 import { db } from "@/server/db";
-import { endOfDhakaDay, startOfDhakaDay } from "@/server/dates";
+import { endOfLocalDay, startOfLocalDay } from "@/server/dates";
 import { METHOD_LABEL } from "@/server/labels";
 import type { StatementRange } from "@/server/modules/ledger/statement";
 
@@ -23,8 +23,8 @@ type CollectEvent = TimelineEvent & { parts: string[] };
 
 export async function getTimeline(hotelIds: string[], range: StatementRange, kinds?: TimelineKind[]) {
   await requirePermission("report:view");
-  const from = startOfDhakaDay(range.from);
-  const to = endOfDhakaDay(range.to);
+  const from = startOfLocalDay(range.from);
+  const to = endOfLocalDay(range.to);
   const want = (k: TimelineKind) => !kinds || kinds.length === 0 || kinds.includes(k);
   const hotelFilter = { hotelId: { in: hotelIds } };
   const created = { createdAt: { gte: from, lt: to } };

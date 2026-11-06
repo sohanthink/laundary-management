@@ -4,6 +4,7 @@ import { after } from "next/server";
 import { z } from "zod";
 import { logAudit } from "@/server/audit";
 import { requirePermission } from "@/server/auth/dal";
+import { getT } from "@/server/i18n";
 import { generateTempPassword, hashPassword } from "@/server/auth/password";
 import { deleteAllSessionsForUser } from "@/server/auth/session";
 import { db } from "@/server/db";
@@ -24,10 +25,11 @@ function emailCredentials(name: string, email: string, tempPassword: string, res
   after(() => sendEmail({ to: email, ...credentialsEmail({ name, email, tempPassword, reset }) }));
 }
 
-function emailNote(email: string) {
+async function emailNote(email: string) {
+  const t = await getT();
   return isEmailConfigured()
-    ? `Login details are being emailed to ${email}.`
-    : "Email is not set up yet, so share these login details yourself.";
+    ? t("Login details are being emailed to {email}.", { email })
+    : t("Email is not set up yet, so share these login details yourself.");
 }
 
 export async function createCustomer(_: ActionState, formData: FormData): Promise<ActionState> {
@@ -58,7 +60,7 @@ export async function createCustomer(_: ActionState, formData: FormData): Promis
 
   emailCredentials(name, email, tempPassword);
   return done(
-    `Customer created. ${emailNote(email)} Temporary password: ${tempPassword}`,
+    `${(await getT())("Customer created.")} ${await emailNote(email)} ${(await getT())("Temporary password: {password}", { password: tempPassword })}`,
   );
 }
 
@@ -118,7 +120,10 @@ export async function resetOwnerPassword(_: ActionState, formData: FormData): Pr
   await logAudit({ userId: admin.id, action: "customer.resetPassword", entity: "Customer", entityId: customerId });
 
   emailCredentials(customer.user.name, customer.user.email, tempPassword, true);
-  return done(`Password reset. ${emailNote(customer.user.email)} Temporary password: ${tempPassword}`);
+  const t = await getT();
+  return done(
+    `${t("Password reset.")} ${await emailNote(customer.user.email)} ${t("Temporary password: {password}", { password: tempPassword })}`,
+  );
 }
 
 const activeSchema = z.object({ id, isActive: checkbox });
@@ -163,7 +168,7 @@ export async function createHotel(_: ActionState, formData: FormData): Promise<A
 
   const hotel = await db.hotel.create({ data: parsed.data });
   await logAudit({ userId: admin.id, action: "hotel.create", entity: "Hotel", entityId: hotel.id, after: hotel });
-  return done(`Hotel "${hotel.name}" added. Next, set up its agreed products and prices.`);
+  return done((await getT())("Hotel \"{name}\" added. Next, set up its agreed products and prices.", { name: hotel.name }));
 }
 
 export async function updateHotel(_: ActionState, formData: FormData): Promise<ActionState> {

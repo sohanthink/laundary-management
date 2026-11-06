@@ -2,13 +2,16 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Photo } from "@/components/photo";
 import { ActionForm } from "@/components/ui/action-form";
-import { LinkButton } from "@/components/ui/button";
+import { LinkButton } from "@/components/ui/link-button";
 import { Card, PageHeader } from "@/components/ui/layout";
 import { updateProduct } from "@/server/modules/products/actions";
 import { getCategories, getProduct } from "@/server/modules/products/queries";
 import { ProductFields } from "../product-fields";
+import { getT } from "@/server/i18n";
 
-export const metadata: Metadata = { title: "Edit product" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())("Edit product") };
+}
 
 export default async function EditProductPage({ params }: PageProps<"/admin/products/[id]">) {
   const { id } = await params;

@@ -5,12 +5,14 @@ import { AuthCard } from "@/components/auth-card";
 import { LoginForm } from "@/components/login-form";
 import { getCurrentUser } from "@/server/auth/dal";
 import { homePathFor } from "@/server/auth/permissions";
+import { getT } from "@/server/i18n";
 
 export const metadata: Metadata = {
   title: "Sign in",
 };
 
 export default async function LoginPage() {
+  const t = await getT();
   const user = await getCurrentUser();
   if (user) redirect(user.mustChangePassword ? "/change-password" : homePathFor(user));
 
@@ -22,7 +24,7 @@ export default async function LoginPage() {
       <LoginForm />
       <p className="mt-6 text-center text-sm text-(--muted)">
         <Link href="/" className="font-medium text-(--teal) hover:underline">
-          Back to home
+          {t("Back to home")}
         </Link>
       </p>
     </AuthCard>

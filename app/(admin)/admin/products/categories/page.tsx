@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
 import { ActionForm } from "@/components/ui/action-form";
-import { LinkButton } from "@/components/ui/button";
+import { LinkButton } from "@/components/ui/link-button";
 import { Input, TextField } from "@/components/ui/field";
 import { Card, Empty, PageHeader } from "@/components/ui/layout";
 import { createCategory, renameCategory } from "@/server/modules/products/actions";
 import { getCategories } from "@/server/modules/products/queries";
+import { getT } from "@/server/i18n";
 
-export const metadata: Metadata = { title: "Categories" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())("Categories") };
+}
 
 export default async function CategoriesPage() {
   const categories = await getCategories();

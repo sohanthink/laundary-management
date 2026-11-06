@@ -1,10 +1,12 @@
 import { Badge, Table, Td, Th } from "@/components/ui/layout";
 import { formatDateTime } from "@/server/dates";
 import { METHOD_LABEL } from "@/server/labels";
-import { formatTk } from "@/server/money";
+import { getT } from "@/server/i18n";
+import { formatMoney } from "@/server/money";
 import type { SendWithDetails } from "@/server/modules/send/queries";
 
-export function SendReceipt({ send }: { send: SendWithDetails }) {
+export async function SendReceipt({ send }: { send: SendWithDetails }) {
+  const t = await getT();
   const payments = send.ledgerEntries.filter((e) => e.type === "PAYMENT" && e.status === "ACTIVE");
   const agreedDiscount = send.lines.reduce(
     (sum, l) => sum + (l.basePriceSnapshot - l.agreedPriceSnapshot) * l.quantity,
@@ -21,7 +23,7 @@ export function SendReceipt({ send }: { send: SendWithDetails }) {
           <p className="text-sm text-(--muted)">{send.hotel.location}</p>
         </div>
         <div className="text-right text-sm">
-          <p className="font-medium">Receipt #{send.id.slice(-8).toUpperCase()}</p>
+          <p className="font-medium">{t("Receipt")} #{send.id.slice(-8).toUpperCase()}</p>
           <p className="text-(--muted)">{formatDateTime(send.createdAt)}</p>
           {send.status === "VOIDED" && (
             <p className="mt-1">
@@ -49,12 +51,12 @@ export function SendReceipt({ send }: { send: SendWithDetails }) {
               <tr key={l.id}>
                 <Td>{l.product.name}</Td>
                 <Td align="right">{l.quantity}</Td>
-                <Td align="right">{formatTk(l.basePriceSnapshot)}</Td>
-                <Td align="right">{formatTk(l.agreedPriceSnapshot)}</Td>
-                <Td align="right">{l.extraDiscountPerPiece ? `-${formatTk(l.extraDiscountPerPiece)}` : "-"}</Td>
-                <Td align="right">{formatTk(l.finalUnitPrice)}</Td>
+                <Td align="right">{formatMoney(l.basePriceSnapshot)}</Td>
+                <Td align="right">{formatMoney(l.agreedPriceSnapshot)}</Td>
+                <Td align="right">{l.extraDiscountPerPiece ? `-${formatMoney(l.extraDiscountPerPiece)}` : "-"}</Td>
+                <Td align="right">{formatMoney(l.finalUnitPrice)}</Td>
                 <Td align="right" className="font-semibold">
-                  {formatTk(l.lineTotal)}
+                  {formatMoney(l.lineTotal)}
                 </Td>
               </tr>
             ))}
@@ -64,7 +66,7 @@ export function SendReceipt({ send }: { send: SendWithDetails }) {
 
       {send.itemLines.length > 0 && (
         <div>
-          <p className="mb-1 text-sm font-semibold">Hotel&apos;s own items washed</p>
+          <p className="mb-1 text-sm font-semibold">{t("Hotel's own items washed")}</p>
           <Table>
             <thead>
               <tr>
@@ -79,9 +81,9 @@ export function SendReceipt({ send }: { send: SendWithDetails }) {
                 <tr key={l.id}>
                   <Td>{l.serviceItem.name}</Td>
                   <Td align="right">{l.quantity}</Td>
-                  <Td align="right">{formatTk(l.unitPriceSnapshot)}</Td>
+                  <Td align="right">{formatMoney(l.unitPriceSnapshot)}</Td>
                   <Td align="right" className="font-semibold">
-                    {formatTk(l.lineTotal)}
+                    {formatMoney(l.lineTotal)}
                   </Td>
                 </tr>
               ))}
@@ -91,21 +93,21 @@ export function SendReceipt({ send }: { send: SendWithDetails }) {
       )}
 
       <div className="ml-auto max-w-sm space-y-2 text-sm">
-        <Row label="Subtotal" value={formatTk(send.subtotal)} />
-        {send.wholeDiscount > 0 && <Row label="Extra discount (whole)" value={`-${formatTk(send.wholeDiscount)}`} />}
-        <Row label="Total charged" value={formatTk(send.total)} strong />
+        <Row label={t("Subtotal")} value={formatMoney(send.subtotal)} />
+        {send.wholeDiscount > 0 && <Row label={t("Extra discount (whole)")} value={`-${formatMoney(send.wholeDiscount)}`} />}
+        <Row label={t("Total charged")} value={formatMoney(send.total)} strong />
         {payments.map((p) => (
-          <Row key={p.id} label={`Paid now (${METHOD_LABEL[p.method ?? "CASH"]})`} value={formatTk(p.amount)} />
+          <Row key={p.id} label={`${t("Paid now")} (${t(METHOD_LABEL[p.method ?? "CASH"])})`} value={formatMoney(p.amount)} />
         ))}
-        {agreedDiscount > 0 && <Row label="Saved by agreed deal" value={formatTk(agreedDiscount)} muted />}
-        {extraDiscount > 0 && <Row label="Extra discount given" value={formatTk(extraDiscount)} muted />}
+        {agreedDiscount > 0 && <Row label={t("Saved by agreed deal")} value={formatMoney(agreedDiscount)} muted />}
+        {extraDiscount > 0 && <Row label={t("Extra discount given")} value={formatMoney(extraDiscount)} muted />}
       </div>
 
       {(send.discountReason || send.note || send.voidReason) && (
         <div className="space-y-1 rounded-2xl bg-(--paper) p-4 text-sm">
-          {send.discountReason && <p>Discount reason: {send.discountReason}</p>}
-          {send.note && <p>Note: {send.note}</p>}
-          {send.voidReason && <p className="text-red-700">Void reason: {send.voidReason}</p>}
+          {send.discountReason && <p>{t("Discount reason")}: {send.discountReason}</p>}
+          {send.note && <p>{t("Note")}: {send.note}</p>}
+          {send.voidReason && <p className="text-red-700">{t("Void reason")}: {send.voidReason}</p>}
         </div>
       )}
     </div>

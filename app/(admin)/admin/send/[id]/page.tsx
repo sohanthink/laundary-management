@@ -3,15 +3,18 @@ import { notFound } from "next/navigation";
 import { PrintButton } from "@/components/print-button";
 import { SendReceipt } from "@/components/send-receipt";
 import { ActionForm } from "@/components/ui/action-form";
-import { LinkButton } from "@/components/ui/button";
+import { LinkButton } from "@/components/ui/link-button";
 import { TextField } from "@/components/ui/field";
 import { Card, PageHeader } from "@/components/ui/layout";
 import { Modal } from "@/components/ui/modal";
 import { isEmailConfigured } from "@/server/email";
 import { voidSend } from "@/server/modules/send/actions";
 import { getSend } from "@/server/modules/send/queries";
+import { getT } from "@/server/i18n";
 
-export const metadata: Metadata = { title: "Send receipt" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())("Send receipt") };
+}
 
 export default async function SendReceiptPage({ params, searchParams }: PageProps<"/admin/send/[id]">) {
   const { id } = await params;
@@ -33,9 +36,10 @@ export default async function SendReceiptPage({ params, searchParams }: PageProp
         actions={
           <>
             <PrintButton />
-            <LinkButton href={`/admin/send?hotel=${send.hotelId}`} variant="primary">
-              New send
+            <LinkButton href={`/admin/collect?hotel=${send.hotelId}`} variant="primary">
+              Collect from this hotel
             </LinkButton>
+            <LinkButton href={`/admin/send?hotel=${send.hotelId}`}>New send</LinkButton>
             <LinkButton href={`/admin/hotels/${send.hotelId}`}>Hotel profile</LinkButton>
             {send.status === "ACTIVE" && (
               <Modal

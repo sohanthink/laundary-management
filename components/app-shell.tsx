@@ -1,42 +1,61 @@
+import { Home } from "lucide-react";
+import Link from "next/link";
 import type { ReactNode } from "react";
-import { Logo } from "@/components/logo";
+import { LanguageSwitch } from "@/components/language-switch";
 import { LogoutButton } from "@/components/logout-button";
-import { NavLinks, type NavItem } from "@/components/nav-links";
+import { getT } from "@/server/i18n";
 
-export function AppShell({
-  nav,
+export type NavItem = { href: string; label: string };
+
+/** Touch-first shell: a big Home button instead of a sidebar, like the till software staff know. */
+export async function AppShell({
   homeHref,
   userName,
   roleLabel,
+  nav = [],
   children,
 }: {
-  nav: NavItem[];
   homeHref: string;
   userName: string;
   roleLabel: string;
+  nav?: NavItem[];
   children: ReactNode;
 }) {
+  const t = await getT();
   return (
-    <div className="flex min-h-full flex-1 flex-col bg-(--paper) lg:flex-row">
-      <aside className="border-b border-(--line) bg-white lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:shrink-0 lg:border-b-0 lg:border-r">
-        <div className="flex items-center justify-between px-5 py-4 lg:py-6">
-          <Logo href={homeHref} compact />
-        </div>
-        <NavLinks items={nav} />
-      </aside>
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-end gap-4 border-b border-(--line) bg-white/70 px-6 py-3 backdrop-blur">
-          <div className="text-right leading-tight">
-            <p className="text-sm font-medium text-(--ink)">{userName}</p>
-            <p className="text-xs text-(--muted)">{roleLabel}</p>
+    <div className="flex min-h-full flex-1 flex-col bg-(--paper)">
+      <header className="no-print sticky top-0 z-30 flex flex-wrap items-center gap-3 border-b border-(--line) bg-white px-4 py-3 sm:px-6">
+        <Link
+          href={homeHref}
+          className="inline-flex h-14 items-center gap-2 rounded-2xl bg-(--ink) px-6 text-lg font-bold tracking-wide text-white transition hover:bg-black focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-(--teal-soft)"
+        >
+          <Home className="size-6" aria-hidden />
+          {t("HOME")}
+        </Link>
+        <span className="hidden font-display text-2xl tracking-tight text-(--ink) sm:inline">an-nafi</span>
+        {nav.length > 0 && (
+          <nav className="flex flex-wrap gap-2">
+            {nav.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="inline-flex h-12 items-center rounded-xl border border-(--line) px-4 text-sm font-semibold text-(--ink) hover:border-(--teal)"
+              >
+                {t(item.label)}
+              </Link>
+            ))}
+          </nav>
+        )}
+        <div className="ml-auto flex items-center gap-3">
+          <LanguageSwitch />
+          <div className="hidden text-right leading-tight md:block">
+            <p className="text-sm font-semibold text-(--ink)">{userName}</p>
+            <p className="text-xs text-(--muted)">{t(roleLabel)}</p>
           </div>
           <LogoutButton />
-        </header>
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">
-          {children}
-        </main>
-      </div>
+        </div>
+      </header>
+      <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-6 sm:px-6">{children}</main>
     </div>
   );
 }

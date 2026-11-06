@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/server/db";
-import { endOfDhakaDay, startOfDhakaDay } from "@/server/dates";
+import { endOfLocalDay, startOfLocalDay } from "@/server/dates";
 import { dueFromSums, withRunningBalance } from "@/server/ledger";
 import { getSumsByHotel } from "./core";
 
@@ -11,8 +11,8 @@ export type StatementRange = { from: string; to: string };
  * admin or owner query. Voided entries are listed but don't count.
  */
 export async function buildStatement(hotelId: string, range: StatementRange) {
-  const from = startOfDhakaDay(range.from);
-  const to = endOfDhakaDay(range.to);
+  const from = startOfLocalDay(range.from);
+  const to = endOfLocalDay(range.to);
 
   const [openingSums, entries, closingSums] = await Promise.all([
     getSumsByHotel(db, { hotelId, date: { lt: from } }),

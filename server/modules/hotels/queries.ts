@@ -1,7 +1,7 @@
 import "server-only";
 import { requirePermission } from "@/server/auth/dal";
 import { db } from "@/server/db";
-import { getDue } from "@/server/modules/ledger/core";
+import { getDue, getDueByHotel } from "@/server/modules/ledger/core";
 import { buildStatement, type StatementRange } from "@/server/modules/ledger/statement";
 import { activePrices, activeServicePrices } from "@/server/modules/prices/queries";
 import { getItemTracking, getProductTracking } from "@/server/modules/tracking/core";
@@ -14,6 +14,35 @@ export async function getActiveHotelOptions() {
     select: { id: true, name: true, customer: { select: { user: { select: { name: true } } } } },
   });
 }
+
+/** Hotels for the big chooser on Send / Collect: name, owner, place and current due. */
+export async function getHotelChooserOptions() {
+  await requirePermission("admin:access");
+  const [hotels, dues] = await Promise.all([
+    db.hotel.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        location: true,
+        phone: true,
+        customer: { select: { phone: true, user: { select: { name: true } } } },
+      },
+    }),
+    getDueByHotel(db),
+  ]);
+  return hotels.map((h) => ({
+    id: h.id,
+    name: h.name,
+    location: h.location,
+    owner: h.customer.user.name,
+    phone: h.phone ?? h.customer.phone,
+    due: dues.get(h.id) ?? 0,
+  }));
+}
+
+export type HotelOption = Awaited<ReturnType<typeof getHotelChooserOptions>>[number];
 
 /** Everything shown on a hotel profile. No auth check (shared by admin and owner wrappers). */
 export async function loadHotelProfile(hotelId: string, range: StatementRange) {

@@ -21,4 +21,5 @@ export const METHOD_LABEL: Record<PaymentMethod, string> = {
   CASH: "Cash",
   BANK: "Bank",
   EMPLOYEE: "Collected by employee",
+  POS: "POS (card)",
 };

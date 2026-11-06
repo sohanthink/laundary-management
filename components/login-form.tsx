@@ -1,12 +1,14 @@
 "use client";
 
 import { startTransition, useActionState, type FormEvent } from "react";
+import { useT } from "@/components/i18n-provider";
 import { login } from "@/server/modules/auth/actions";
 
 const inputClass =
   "h-12 w-full rounded-xl border border-(--line) bg-(--paper) px-4 text-(--ink) outline-none transition placeholder:text-(--muted) focus:border-(--teal) focus:ring-4 focus:ring-(--teal-soft)";
 
 export function LoginForm() {
+  const t = useT();
   const [state, action, pending] = useActionState(login, undefined);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -19,7 +21,7 @@ export function LoginForm() {
     <form action={action} onSubmit={handleSubmit} className="mt-8 space-y-5">
       <label className="block">
         <span className="mb-2 block text-sm font-medium text-(--ink)">
-          Email
+          {t("Email")}
         </span>
         <input
           type="email"
@@ -31,26 +33,26 @@ export function LoginForm() {
         />
         {state?.fieldErrors?.email && (
           <span className="mt-1 block text-xs text-red-600">
-            {state.fieldErrors.email[0]}
+            {t(state.fieldErrors.email[0])}
           </span>
         )}
       </label>
 
       <label className="block">
         <span className="mb-2 block text-sm font-medium text-(--ink)">
-          Password
+          {t("Password")}
         </span>
         <input
           type="password"
           name="password"
           required
           autoComplete="current-password"
-          placeholder="Enter your password"
+          placeholder={t("Enter your password")}
           className={inputClass}
         />
         {state?.fieldErrors?.password && (
           <span className="mt-1 block text-xs text-red-600">
-            {state.fieldErrors.password[0]}
+            {t(state.fieldErrors.password[0])}
           </span>
         )}
       </label>
@@ -60,7 +62,7 @@ export function LoginForm() {
           role="alert"
           className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
         >
-          {state.error}
+          {t(state.error)}
         </p>
       )}
 
@@ -69,7 +71,7 @@ export function LoginForm() {
         disabled={pending}
         className="flex h-12 w-full items-center justify-center rounded-full bg-(--teal) text-sm font-semibold text-white transition hover:bg-(--teal-dark) disabled:opacity-60"
       >
-        {pending ? "Signing in..." : "Sign in"}
+        {pending ? t("Signing in...") : t("Sign in")}
       </button>
     </form>
   );

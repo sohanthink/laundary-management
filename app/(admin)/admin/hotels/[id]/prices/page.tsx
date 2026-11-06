@@ -1,19 +1,23 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ActionForm } from "@/components/ui/action-form";
-import { LinkButton } from "@/components/ui/button";
+import { LinkButton } from "@/components/ui/link-button";
 import { Card, Empty, PageHeader, Table, Td, Th } from "@/components/ui/layout";
 import { formatDate } from "@/server/dates";
-import { formatTk, toTkInput } from "@/server/money";
+import { formatMoney, toMoneyInput } from "@/server/money";
 import { removeHotelPrice, setHotelPrice } from "@/server/modules/prices/actions";
 import { getHotelPricePage } from "@/server/modules/prices/queries";
 import { describeDiscount } from "@/server/pricing";
 import { DiscountFields } from "./discount-fields";
 import { ServicePricesCard } from "./service-prices";
+import { getT } from "@/server/i18n";
 
-export const metadata: Metadata = { title: "Agreed prices" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())("Agreed prices") };
+}
 
 export default async function HotelPricesPage({ params }: PageProps<"/admin/hotels/[id]/prices">) {
+  const t = await getT();
   const { id } = await params;
   const { hotel, prices, addable, history } = await getHotelPricePage(id);
   if (!hotel) notFound();
@@ -21,7 +25,7 @@ export default async function HotelPricesPage({ params }: PageProps<"/admin/hote
   return (
     <>
       <PageHeader
-        title={`${hotel.name}: agreed prices`}
+        title={`${hotel.name}: ${t("agreed prices")}`}
         description="Only these products appear on the Send screen for this hotel. Changing a price never changes past sends."
         actions={
           <>
@@ -57,10 +61,10 @@ export default async function HotelPricesPage({ params }: PageProps<"/admin/hote
                     <DiscountFields
                       product={{ id: price.product.id, name: price.product.name, basePrice: price.product.basePrice }}
                       defaultType={price.discountType}
-                      defaultValue={price.discountType === "NONE" ? "" : toTkInput(price.discountValue)}
+                      defaultValue={price.discountType === "NONE" ? "" : toMoneyInput(price.discountValue)}
                     />
                     <p className="text-xs text-(--muted)">
-                      Agreed {formatTk(price.agreedPrice)} since {formatDate(price.validFrom)}
+                      {t("Agreed {price} since {date}", { price: formatMoney(price.agreedPrice), date: formatDate(price.validFrom) })}
                     </p>
                   </ActionForm>
                   <div className="mt-2 flex justify-end">
@@ -99,8 +103,8 @@ export default async function HotelPricesPage({ params }: PageProps<"/admin/hote
                 {history.map((h) => (
                   <tr key={h.id}>
                     <Td>{h.product.name}</Td>
-                    <Td>{describeDiscount(h.discountType, h.discountValue)}</Td>
-                    <Td align="right">{formatTk(h.agreedPrice)}</Td>
+                    <Td>{describeDiscount(h.discountType, h.discountValue, t)}</Td>
+                    <Td align="right">{formatMoney(h.agreedPrice)}</Td>
                     <Td>{formatDate(h.validFrom)}</Td>
                     <Td>{h.validTo ? formatDate(h.validTo) : "-"}</Td>
                   </tr>

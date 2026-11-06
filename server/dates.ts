@@ -1,21 +1,47 @@
-// All business dates are in Bangladesh time (UTC+6, no daylight saving).
+// All business dates are in Italian time (Europe/Rome, with summer time).
 
-const TIME_ZONE = "Asia/Dhaka";
-const OFFSET = "+06:00";
+export const TIME_ZONE = "Europe/Rome";
 
-/** "2026-01-31" -> Date at 00:00 Dhaka time */
-export function startOfDhakaDay(isoDate: string): Date {
-  return new Date(`${isoDate}T00:00:00${OFFSET}`);
+const partsFormatter = new Intl.DateTimeFormat("en-US", {
+  timeZone: TIME_ZONE,
+  hourCycle: "h23",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+});
+
+/** How far Rome's clock is ahead of UTC at this instant, in ms. */
+function zoneOffsetMs(date: Date): number {
+  const p = Object.fromEntries(partsFormatter.formatToParts(date).map((x) => [x.type, x.value]));
+  const asUtc = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second);
+  return asUtc - Math.floor(date.getTime() / 1000) * 1000;
 }
 
-/** "2026-01-31" -> Date at 00:00 Dhaka time on the following day (exclusive end) */
-export function endOfDhakaDay(isoDate: string): Date {
-  const start = startOfDhakaDay(isoDate);
-  return new Date(start.getTime() + 24 * 60 * 60 * 1000);
+/** "2026-01-31" -> Date at 00:00 Rome time */
+export function startOfLocalDay(isoDate: string): Date {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  const guess = Date.UTC(y, m - 1, d);
+  let result = guess - zoneOffsetMs(new Date(guess));
+  const corrected = guess - zoneOffsetMs(new Date(result));
+  if (corrected !== result) result = corrected;
+  return new Date(result);
 }
 
-/** Date -> "2026-01-31" in Dhaka time */
-export function toDhakaIsoDate(date: Date): string {
+function nextIsoDay(isoDate: string): string {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
+}
+
+/** "2026-01-31" -> Date at 00:00 Rome time on the following day (exclusive end) */
+export function endOfLocalDay(isoDate: string): Date {
+  return startOfLocalDay(nextIsoDay(isoDate));
+}
+
+/** Date -> "2026-01-31" in Rome time */
+export function toLocalIsoDate(date: Date): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: TIME_ZONE,
     year: "numeric",
@@ -25,16 +51,16 @@ export function toDhakaIsoDate(date: Date): string {
 }
 
 export function todayIso(): string {
-  return toDhakaIsoDate(new Date());
+  return toLocalIsoDate(new Date());
 }
 
 export function startOfYear(year: number): Date {
-  return startOfDhakaDay(`${year}-01-01`);
+  return startOfLocalDay(`${year}-01-01`);
 }
 
 export function startOfMonth(date = new Date()): Date {
-  const iso = toDhakaIsoDate(date);
-  return startOfDhakaDay(`${iso.slice(0, 7)}-01`);
+  const iso = toLocalIsoDate(date);
+  return startOfLocalDay(`${iso.slice(0, 7)}-01`);
 }
 
 export function currentYear(): number {
@@ -56,22 +82,26 @@ export function daysBetween(from: Date, to: Date): number {
   return Math.floor((to.getTime() - from.getTime()) / (24 * 60 * 60 * 1000));
 }
 
+/** 04/11/2026 */
 export function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat("it-IT", {
     timeZone: TIME_ZONE,
     day: "2-digit",
-    month: "short",
+    month: "2-digit",
     year: "numeric",
   }).format(date);
 }
 
+/** 04/11/2026 14:39 */
 export function formatDateTime(date: Date): string {
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat("it-IT", {
     timeZone: TIME_ZONE,
     day: "2-digit",
-    month: "short",
+    month: "2-digit",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(date);
+  })
+    .format(date)
+    .replace(",", "");
 }

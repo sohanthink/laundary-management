@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { isMoneyInput, toPoisha } from "./money";
+import { isMoneyInput, toCents } from "./money";
 
 export type FieldErrors = Record<string, string[] | undefined>;
 
@@ -52,15 +52,15 @@ export const money = (label = "Amount") =>
   z
     .string()
     .trim()
-    .refine(isMoneyInput, `${label} must be a number like 120 or 120.50`)
-    .transform(toPoisha);
+    .refine(isMoneyInput, `${label} must be a number like 120 or 120,50`)
+    .transform(toCents);
 
 export const optionalMoney = z
   .string()
   .trim()
   .optional()
-  .refine((v) => !v || isMoneyInput(v), "Must be a number like 120 or 120.50")
-  .transform((v) => (v ? toPoisha(v) : 0));
+  .refine((v) => !v || isMoneyInput(v), "Must be a number like 120 or 120,50")
+  .transform((v) => (v ? toCents(v) : 0));
 
 export const positiveInt = (label = "Quantity") =>
   z.coerce

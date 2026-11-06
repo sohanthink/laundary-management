@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { logAudit } from "@/server/audit";
 import { requirePermission } from "@/server/auth/dal";
+import { getT } from "@/server/i18n";
 import { db } from "@/server/db";
 import { checkbox, id, money, parseForm, text, type ActionState } from "@/server/forms";
 import { done, revalidateAll, toActionError } from "@/server/modules/shared";
@@ -21,7 +22,7 @@ export async function createCategory(_: ActionState, formData: FormData): Promis
   } catch (error) {
     return toActionError(error);
   }
-  return done(`Category "${parsed.data.name}" created.`);
+  return done((await getT())("Category \"{name}\" created.", { name: parsed.data.name }));
 }
 
 const renameCategorySchema = z.object({ id, name: text("Name") });
@@ -58,7 +59,7 @@ export async function createProduct(_: ActionState, formData: FormData): Promise
   } catch (error) {
     return toActionError(error);
   }
-  return done(`Product "${parsed.data.name}" created.`);
+  return done((await getT())("Product \"{name}\" created.", { name: parsed.data.name }));
 }
 
 const itemSchema = z.object({ name: text("Name") });
@@ -74,7 +75,7 @@ export async function createServiceItem(_: ActionState, formData: FormData): Pro
   } catch (error) {
     return toActionError(error);
   }
-  return done(`"${parsed.data.name}" added. Set its washing price on each hotel's prices page.`);
+  return done((await getT())("\"{name}\" added. Set its washing price on each hotel's prices page.", { name: parsed.data.name }));
 }
 
 export async function updateServiceItem(_: ActionState, formData: FormData): Promise<ActionState> {

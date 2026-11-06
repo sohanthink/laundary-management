@@ -2,8 +2,11 @@ import type { Metadata } from "next";
 import { Card, Empty, PageHeader, Table, Td, Th } from "@/components/ui/layout";
 import { formatDateTime } from "@/server/dates";
 import { getActivityLog } from "@/server/modules/reports/queries";
+import { getT } from "@/server/i18n";
 
-export const metadata: Metadata = { title: "Activity log" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())("Activity log") };
+}
 
 export default async function ActivityLogPage() {
   const logs = await getActivityLog();

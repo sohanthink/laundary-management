@@ -7,8 +7,7 @@ import { getItemTracking, getProductTracking, lastChargedPrices } from "@/server
 
 export async function getCollectScreen(hotelId: string | undefined) {
   await requirePermission("return:create");
-  const hotels = await db.hotel.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } });
-  const empty = { hotels, hotel: null, rows: [], itemRows: [], due: 0 };
+  const empty = { hotel: null, rows: [], itemRows: [], due: 0 };
   if (!hotelId) return empty;
 
   const hotel = await db.hotel.findUnique({ where: { id: hotelId } });
@@ -26,15 +25,17 @@ export async function getCollectScreen(hotelId: string | undefined) {
   const held = tracks.filter((t) => t.atHotel > 0);
   const products = await db.product.findMany({
     where: { id: { in: held.map((t) => t.productId) } },
-    select: { id: true, name: true },
+    select: { id: true, name: true, photoPath: true, category: { select: { name: true } } },
   });
-  const productName = new Map(products.map((p) => [p.id, p.name]));
+  const product = new Map(products.map((p) => [p.id, p]));
   const agreed = new Map(deal.map((p) => [p.productId, p.agreedPrice]));
 
   const rows = held
     .map((t) => ({
       productId: t.productId,
-      name: productName.get(t.productId) ?? "",
+      name: product.get(t.productId)?.name ?? "",
+      category: product.get(t.productId)?.category.name ?? "",
+      photoPath: product.get(t.productId)?.photoPath ?? null,
       atHotel: t.atHotel,
       creditPrice: lastPrices.get(t.productId) ?? agreed.get(t.productId) ?? 0,
     }))
@@ -45,5 +46,5 @@ export async function getCollectScreen(hotelId: string | undefined) {
     .filter((p) => p.serviceItem.isActive)
     .map((p) => ({ serviceItemId: p.serviceItemId, name: p.serviceItem.name, withUs: withUs.get(p.serviceItemId) ?? 0 }));
 
-  return { hotels, hotel, rows, itemRows, due };
+  return { hotel, rows, itemRows, due };
 }

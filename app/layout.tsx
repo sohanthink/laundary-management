@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
+import { I18nProvider } from "@/components/i18n-provider";
+import { getLocale } from "@/server/i18n";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -26,15 +28,16 @@ export const metadata: Metadata = {
   description: "Laundry management for an-nafi.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const locale = await getLocale();
   return (
     <html
-      lang="en"
+      lang={locale}
       className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable} h-full antialiased`}
     >
       {/* Browser extensions (e.g. ColorZilla) add attributes to <body> before React loads. */}
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
-        {children}
+        <I18nProvider locale={locale}>{children}</I18nProvider>
       </body>
     </html>
   );

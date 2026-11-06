@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
+import { translateNode } from "@/server/i18n";
 
-export function PageHeader({
+// Server components: plain-string labels are translated automatically.
+
+export async function PageHeader({
   title,
   description,
   actions,
@@ -12,17 +15,15 @@ export function PageHeader({
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h1 className="font-display text-4xl tracking-tight text-(--ink)">
-          {title}
-        </h1>
-        {description && <p className="mt-1 text-(--muted)">{description}</p>}
+        <h1 className="font-display text-4xl tracking-tight text-(--ink)">{await translateNode(title)}</h1>
+        {description && <p className="mt-1 text-(--muted)">{await translateNode(description)}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>
   );
 }
 
-export function Card({
+export async function Card({
   title,
   actions,
   children,
@@ -39,7 +40,7 @@ export function Card({
     >
       {(title || actions) && (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          {title && <h2 className="text-lg font-semibold text-(--ink)">{title}</h2>}
+          {title && <h2 className="text-lg font-semibold text-(--ink)">{await translateNode(title)}</h2>}
           {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
         </div>
       )}
@@ -48,7 +49,7 @@ export function Card({
   );
 }
 
-export function Stat({
+export async function Stat({
   label,
   value,
   hint,
@@ -64,15 +65,15 @@ export function Stat({
   return (
     <div className="rounded-3xl border border-(--line) bg-white p-5">
       <p className="text-xs font-medium uppercase tracking-[0.18em] text-(--muted)">
-        {label}
+        {await translateNode(label)}
       </p>
       <p className={`mt-2 text-2xl font-semibold ${toneClass}`}>{value}</p>
-      {hint && <p className="mt-1 text-sm text-(--muted)">{hint}</p>}
+      {hint && <p className="mt-1 text-sm text-(--muted)">{await translateNode(hint)}</p>}
     </div>
   );
 }
 
-export function Badge({
+export async function Badge({
   children,
   tone = "default",
 }: {
@@ -90,15 +91,15 @@ export function Badge({
     <span
       className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${tones[tone]}`}
     >
-      {children}
+      {await translateNode(children)}
     </span>
   );
 }
 
-export function Empty({ children }: { children: ReactNode }) {
+export async function Empty({ children }: { children: ReactNode }) {
   return (
     <p className="rounded-2xl border border-dashed border-(--line) px-4 py-8 text-center text-sm text-(--muted)">
-      {children}
+      {await translateNode(children)}
     </p>
   );
 }
@@ -111,7 +112,7 @@ export function Table({ children }: { children: ReactNode }) {
   );
 }
 
-export function Th({
+export async function Th({
   children,
   align = "left",
 }: {
@@ -122,7 +123,7 @@ export function Th({
     <th
       className={`border-b border-(--line) px-3 py-2.5 text-xs font-medium uppercase tracking-wider text-(--muted) ${align === "right" ? "text-right" : ""}`}
     >
-      {children}
+      {await translateNode(children)}
     </th>
   );
 }
@@ -138,9 +139,16 @@ export function Td({
 }) {
   return (
     <td
-      className={`border-b border-(--line)/70 px-3 py-3 align-middle ${align === "right" ? "text-right tabular-nums" : ""} ${className}`}
+      className={`border-b border-(--line)/70 px-3 py-3.5 align-middle ${align === "right" ? "text-right tabular-nums" : ""} ${className}`}
     >
       {children}
     </td>
   );
+}
+
+/** Paid / settled rows are green, open ones stay white (like the till software staff know). */
+export function rowTone(state: "paid" | "open" | "voided" | "none") {
+  if (state === "paid") return "bg-emerald-50";
+  if (state === "voided") return "text-(--muted) line-through";
+  return "";
 }

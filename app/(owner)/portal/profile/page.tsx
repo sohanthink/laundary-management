@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 import { Photo } from "@/components/photo";
 import { ActionForm } from "@/components/ui/action-form";
-import { LinkButton } from "@/components/ui/button";
+import { LinkButton } from "@/components/ui/link-button";
 import { Field, Input, TextField } from "@/components/ui/field";
 import { Card, PageHeader } from "@/components/ui/layout";
 import { updateOwnProfile } from "@/server/modules/portal/actions";
 import { getOwnProfile } from "@/server/modules/portal/queries";
+import { getT } from "@/server/i18n";
 
-export const metadata: Metadata = { title: "Profile" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())("Profile") };
+}
 
 export default async function OwnerProfilePage() {
   const { user, customer } = await getOwnProfile();

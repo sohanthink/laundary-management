@@ -1,5 +1,5 @@
-import { Field, Input, Select, TextField } from "@/components/ui/field";
-import { toTkInput } from "@/server/money";
+import { Field, Input, Option, Select, TextField } from "@/components/ui/field";
+import { toMoneyInput } from "@/server/money";
 
 type Props = {
   categories: { id: string; name: string }[];
@@ -18,9 +18,9 @@ export function ProductFields({ categories, product }: Props) {
       />
       <Field label="Category" name="categoryId">
         <Select name="categoryId" defaultValue={product?.categoryId ?? ""} required>
-          <option value="" disabled>
+          <Option value="" disabled>
             Choose a category
-          </option>
+          </Option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -29,10 +29,10 @@ export function ProductFields({ categories, product }: Props) {
         </Select>
       </Field>
       <TextField
-        label="Base price per piece (tk)"
+        label="Base price per piece (€)"
         name="basePrice"
         inputMode="decimal"
-        defaultValue={product ? toTkInput(product.basePrice) : undefined}
+        defaultValue={product ? toMoneyInput(product.basePrice) : undefined}
         placeholder="20"
         hint="Your standard price. Each hotel gets its own agreed price later."
         required

@@ -1,4 +1,4 @@
-// Money is always stored as integer poisha (100 poisha = 1 tk).
+// Money is always stored as integer cents (100 cents = 1 €).
 
 generator client {
   provider = "prisma-client-js"
@@ -57,6 +57,13 @@ enum PaymentMethod {
   CASH
   BANK
   EMPLOYEE
+  POS
+}
+
+enum InvoiceStatus {
+  UNPAID
+  PAID
+  VOIDED
 }
 
 enum RecordStatus {
@@ -197,6 +204,7 @@ model Hotel {
   stockMovements StockMovement[]
   itemMovements  HotelItemMovement[]
   ledgerEntries  LedgerEntry[]
+  invoices       Invoice[]
 
   @@index([customerId])
 }
@@ -207,7 +215,7 @@ model HotelPrice {
   hotelId       String
   productId     String
   discountType  DiscountType
-  // PERCENT: basis points (1000 = 10%), FLAT: poisha per piece
+  // PERCENT: basis points (1000 = 10%), FLAT: cents per piece
   discountValue Int
   agreedPrice   Int
   validFrom     DateTime     @default(now())
@@ -241,6 +249,8 @@ model Send {
   itemLines      HotelItemMovement[]
   stockMovements StockMovement[]
   ledgerEntries  LedgerEntry[]
+  invoiceId      String?
+  invoice        Invoice?            @relation(fields: [invoiceId], references: [id])
 
   @@index([hotelId, createdAt])
 }
@@ -325,13 +335,16 @@ model LedgerEntry {
   sendId         String?
   // groups a credit with the Collect action that created it
   batchId        String?
+  // rejected-piece credits included in an invoice, and the payment made when it is marked paid
+  invoiceId      String?
   status         RecordStatus   @default(ACTIVE)
   voidReason     String?
   createdById    String
   createdAt      DateTime       @default(now())
 
   hotel Hotel @relation(fields: [hotelId], references: [id])
-  send  Send? @relation(fields: [sendId], references: [id])
+  send    Send?    @relation(fields: [sendId], references: [id])
+  invoice Invoice? @relation(fields: [invoiceId], references: [id])
 
   @@index([hotelId, date])
   @@index([type, date])
@@ -355,4 +368,54 @@ model Expense {
   category ExpenseCategory @relation(fields: [categoryId], references: [id])
 
   @@index([paidAt])
+}
+
+// ---------- Invoices (fatture) ----------
+
+// Built from a hotel's sends (and rejected-piece credits) in a chosen period.
+// Number restarts every year: 1/2026, 2/2026, ...
+model Invoice {
+  id          String         @id @default(cuid())
+  year        Int
+  number      Int
+  hotelId     String
+  periodFrom  DateTime
+  // exclusive end
+  periodTo    DateTime
+  issuedAt    DateTime       @default(now())
+  total       Int
+  status      InvoiceStatus  @default(UNPAID)
+  paidAt      DateTime?
+  method      PaymentMethod?
+  note        String?
+  voidReason  String?
+  createdById String
+
+  hotel         Hotel         @relation(fields: [hotelId], references: [id])
+  lines         InvoiceLine[]
+  sends         Send[]
+  ledgerEntries LedgerEntry[]
+
+  @@unique([year, number])
+  @@index([hotelId, issuedAt])
+}
+
+model InvoiceLine {
+  id          String @id @default(cuid())
+  invoiceId   String
+  description String
+  quantity    Int
+  unitPrice   Int
+  total       Int
+  sortOrder   Int    @default(0)
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+// ---------- Settings ----------
+
+// Simple key/value store, e.g. company details printed on invoices.
+model Setting {
+  key   String @id
+  value String
 }

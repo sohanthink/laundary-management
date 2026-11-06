@@ -17,7 +17,7 @@ import {
   quantity,
   type ActionState,
 } from "@/server/forms";
-import { isMoneyInput, toPoisha } from "@/server/money";
+import { isMoneyInput, toCents } from "@/server/money";
 import { getDue } from "@/server/modules/ledger/core";
 import { activePrices, activeServicePrices } from "@/server/modules/prices/queries";
 import { BusinessError, revalidateAll, SERIALIZABLE, toActionError } from "@/server/modules/shared";
@@ -35,7 +35,7 @@ const sendSchema = z.object({
       extraPerPiece: z
         .string()
         .trim()
-        .refine((v) => !v || isMoneyInput(v), "Extra discount must be a number like 2 or 1.50"),
+        .refine((v) => !v || isMoneyInput(v), "Extra discount must be a number like 2 or 1,50"),
     }),
   ),
   items: jsonArray(z.object({ serviceItemId: z.string().min(1), quantity })),
@@ -43,7 +43,7 @@ const sendSchema = z.object({
   discountReason: optionalText,
   note: optionalText,
   paymentAmount: optionalMoney,
-  paymentMethod: z.enum(["CASH", "BANK", "EMPLOYEE"]).default("CASH"),
+  paymentMethod: z.enum(["CASH", "BANK", "POS", "EMPLOYEE"]).default("CASH"),
 });
 
 /**
@@ -58,7 +58,7 @@ export async function createSend(_: ActionState, formData: FormData): Promise<Ac
 
   const lines = input.lines
     .filter((l) => l.quantity > 0)
-    .map((l) => ({ ...l, extraPerPiece: l.extraPerPiece ? toPoisha(l.extraPerPiece) : 0 }));
+    .map((l) => ({ ...l, extraPerPiece: l.extraPerPiece ? toCents(l.extraPerPiece) : 0 }));
   const items = input.items.filter((i) => i.quantity > 0);
   if (lines.length === 0 && items.length === 0) {
     return { error: "Enter a quantity for at least one product or item." };
@@ -226,6 +226,7 @@ export async function voidSend(_: ActionState, formData: FormData): Promise<Acti
       });
       if (!send) throw new BusinessError("Send not found.");
       if (send.status === "VOIDED") throw new BusinessError("This send is already voided.");
+      if (send.invoiceId) throw new BusinessError("This send is on an invoice. Void the invoice first.");
 
       if (send.lines.length > 0) {
         await assertEnough(

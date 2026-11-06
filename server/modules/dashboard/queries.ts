@@ -5,6 +5,22 @@ import { startOfMonth } from "@/server/dates";
 import { getDueByHotel } from "@/server/modules/ledger/core";
 import { getItemTracking, getProductTracking } from "@/server/modules/tracking/core";
 
+export async function getHomeStats() {
+  await requirePermission("admin:access");
+  const [dues, productTracks, itemTracks, unpaidInvoices] = await Promise.all([
+    getDueByHotel(db),
+    getProductTracking(db),
+    getItemTracking(db),
+    db.invoice.count({ where: { status: "UNPAID" } }),
+  ]);
+  return {
+    totalDue: [...dues.values()].reduce((s, d) => s + d, 0),
+    atHotels: productTracks.reduce((s, t) => s + t.atHotel, 0),
+    itemsWithUs: itemTracks.reduce((s, t) => s + t.withUs, 0),
+    unpaidInvoices,
+  };
+}
+
 export async function getDashboard() {
   await requirePermission("admin:access");
   const monthStart = startOfMonth();

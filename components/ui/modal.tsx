@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useT } from "@/components/i18n-provider";
 import { Button } from "./button";
 
 type ModalContextValue = { close: (message?: string) => void };
@@ -36,6 +37,7 @@ export function Modal({
   triggerSize = "md",
   description,
 }: ModalProps) {
+  const t = useT();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [toast, setToast] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -57,7 +59,7 @@ export function Modal({
         size={triggerSize}
         onClick={() => dialogRef.current?.showModal()}
       >
-        {trigger}
+        {t(trigger)}
       </Button>
       <dialog
         ref={dialogRef}
@@ -65,16 +67,16 @@ export function Modal({
       >
         <div className="flex items-start justify-between gap-4 border-b border-(--line) px-6 py-4">
           <div>
-            <h2 className="text-lg font-semibold">{title}</h2>
+            <h2 className="text-lg font-semibold">{t(title)}</h2>
             {description && (
-              <p className="mt-1 text-sm text-(--muted)">{description}</p>
+              <p className="mt-1 text-sm text-(--muted)">{t(description)}</p>
             )}
           </div>
           <button
             type="button"
             onClick={() => close()}
-            className="rounded-full px-2 text-xl leading-none text-(--muted) hover:text-(--ink)"
-            aria-label="Close"
+            className="flex size-10 items-center justify-center rounded-full text-2xl leading-none text-(--muted) hover:bg-(--paper) hover:text-(--ink)"
+            aria-label={t("Close")}
           >
             ×
           </button>
@@ -88,7 +90,7 @@ export function Modal({
           role="status"
           className="fixed bottom-6 right-6 z-50 max-w-sm rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 shadow-lg"
         >
-          {toast}
+          {t(toast)}
         </div>
       )}
     </>

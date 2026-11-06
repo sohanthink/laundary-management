@@ -5,8 +5,11 @@ import { inputClass } from "@/components/ui/field";
 import { Badge, Card, Empty, PageHeader, Table, Td, Th } from "@/components/ui/layout";
 import { formatDate } from "@/server/dates";
 import { getLongHeld } from "@/server/modules/reports/queries";
+import { getT } from "@/server/i18n";
 
-export const metadata: Metadata = { title: "Long-held items" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())("Long-held items") };
+}
 
 export default async function LongHeldPage({ searchParams }: PageProps<"/admin/audit/long-held">) {
   const { days: daysParam } = await searchParams;

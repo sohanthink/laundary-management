@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { HotelPicker } from "@/components/hotel-picker";
-import { LinkButton } from "@/components/ui/button";
+import { LinkButton } from "@/components/ui/link-button";
 import { Badge, Card, Empty, PageHeader, Stat, Table, Td, Th } from "@/components/ui/layout";
 import { formatDateTime } from "@/server/dates";
 import { MOVEMENT_LABEL } from "@/server/labels";
 import { getTrackingPage } from "@/server/modules/tracking/queries";
+import { getT } from "@/server/i18n";
 
-export const metadata: Metadata = { title: "Tracking" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())("Tracking") };
+}
 
 export default async function TrackingPage({ searchParams }: PageProps<"/admin/tracking">) {
   const { hotel: hotelParam } = await searchParams;

@@ -2,15 +2,18 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Photo } from "@/components/photo";
 import { ActionForm } from "@/components/ui/action-form";
-import { LinkButton } from "@/components/ui/button";
+import { LinkButton } from "@/components/ui/link-button";
 import { Badge, Card, Empty, PageHeader, Table, Td, Th } from "@/components/ui/layout";
 import { Modal } from "@/components/ui/modal";
-import { formatTk } from "@/server/money";
+import { formatMoney } from "@/server/money";
 import { createProduct } from "@/server/modules/products/actions";
 import { getCategories, getProductsWithTracking } from "@/server/modules/products/queries";
 import { ProductFields } from "./product-fields";
+import { getT } from "@/server/i18n";
 
-export const metadata: Metadata = { title: "Products" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())("Products") };
+}
 
 export default async function ProductsPage() {
   const [rows, categories] = await Promise.all([getProductsWithTracking(), getCategories()]);
@@ -68,7 +71,7 @@ export default async function ProductsPage() {
                     </div>
                   </Td>
                   <Td>{product.category.name}</Td>
-                  <Td align="right">{formatTk(product.basePrice)}</Td>
+                  <Td align="right">{formatMoney(product.basePrice)}</Td>
                   <Td align="right" className="font-semibold">
                     {atHotels}
                   </Td>

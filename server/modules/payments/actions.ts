@@ -4,8 +4,9 @@ import { after } from "next/server";
 import { z } from "zod";
 import { logAudit } from "@/server/audit";
 import { requirePermission } from "@/server/auth/dal";
+import { getT } from "@/server/i18n";
 import { db } from "@/server/db";
-import { startOfDhakaDay, todayIso } from "@/server/dates";
+import { startOfLocalDay, todayIso } from "@/server/dates";
 import { sendEmail } from "@/server/email";
 import { id, isoDate, money, optionalText, parseForm, type ActionState } from "@/server/forms";
 import { getDue } from "@/server/modules/ledger/core";
@@ -15,13 +16,13 @@ import { paymentReceiptEmail } from "./receipt";
 
 /** Payments dated today keep the exact time so they sort after today's sends. */
 function entryDate(iso: string) {
-  return iso === todayIso() ? new Date() : startOfDhakaDay(iso);
+  return iso === todayIso() ? new Date() : startOfLocalDay(iso);
 }
 
 const paymentSchema = z.object({
   hotelId: z.string().min(1, "Choose a hotel"),
   amount: money("Amount").refine((v) => v > 0, "Amount must be more than 0"),
-  method: z.enum(["CASH", "BANK", "EMPLOYEE"]),
+  method: z.enum(["CASH", "BANK", "POS", "EMPLOYEE"]),
   date: isoDate,
   note: optionalText,
 });
@@ -47,7 +48,7 @@ export async function recordPayment(_: ActionState, formData: FormData): Promise
     const due = await getDue(db, hotelId);
     await sendEmail({ to: receiptRecipient(hotel), ...paymentReceiptEmail(hotel.name, entry, due) });
   });
-  return done(`Payment recorded for ${hotel.name}. The due was reduced.`);
+  return done((await getT())("Payment recorded for {hotel}. The due was reduced.", { hotel: hotel.name }));
 }
 
 const adjustmentSchema = z.object({
@@ -92,6 +93,14 @@ export async function voidLedgerEntry(_: ActionState, formData: FormData): Promi
   if (entry.status === "VOIDED") return { error: "Already voided." };
   if (entry.type === "CHARGE") return { error: "Charges can't be voided here. Void the send or add an adjustment." };
   if (entry.sendId && entry.type === "ADJUSTMENT") return { error: "This adjustment belongs to a voided send." };
+  if (entry.invoiceId) {
+    return {
+      error:
+        entry.type === "PAYMENT"
+          ? "This payment came from an invoice. Open the invoice and mark it unpaid instead."
+          : "This credit is on an invoice. Void the invoice first.",
+    };
+  }
 
   const updated = await db.ledgerEntry.update({
     where: { id: entry.id },

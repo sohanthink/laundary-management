@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
 import { ActionForm } from "@/components/ui/action-form";
-import { LinkButton } from "@/components/ui/button";
+import { LinkButton } from "@/components/ui/link-button";
 import { Input, TextField } from "@/components/ui/field";
 import { Card, Empty, PageHeader } from "@/components/ui/layout";
 import { createServiceItem, updateServiceItem } from "@/server/modules/products/actions";
 import { getServiceItems } from "@/server/modules/products/queries";
+import { getT } from "@/server/i18n";
 
-export const metadata: Metadata = { title: "Hotel's own items" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())("Hotel's own items") };
+}
 
 export default async function HotelItemsPage() {
   const items = await getServiceItems();

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { logAudit } from "@/server/audit";
 import { requirePermission } from "@/server/auth/dal";
 import { db } from "@/server/db";
-import { startOfDhakaDay } from "@/server/dates";
+import { startOfLocalDay } from "@/server/dates";
 import { id, isoDate, money, optionalText, parseForm, text, type ActionState } from "@/server/forms";
 import { done, toActionError } from "@/server/modules/shared";
 
@@ -22,7 +22,7 @@ export async function createExpense(_: ActionState, formData: FormData): Promise
   const { paidAt, ...data } = parsed.data;
 
   const expense = await db.expense.create({
-    data: { ...data, paidAt: startOfDhakaDay(paidAt), createdById: user.id },
+    data: { ...data, paidAt: startOfLocalDay(paidAt), createdById: user.id },
   });
   await logAudit({ userId: user.id, action: "expense.create", entity: "Expense", entityId: expense.id, after: expense });
   return done("Expense added.");
@@ -38,7 +38,7 @@ export async function updateExpense(_: ActionState, formData: FormData): Promise
   if (!before) return { error: "Expense not found." };
   const after = await db.expense.update({
     where: { id: expenseId },
-    data: { ...data, paidAt: startOfDhakaDay(paidAt) },
+    data: { ...data, paidAt: startOfLocalDay(paidAt) },
   });
   await logAudit({ userId: user.id, action: "expense.update", entity: "Expense", entityId: expenseId, before, after });
   return done("Expense updated.");

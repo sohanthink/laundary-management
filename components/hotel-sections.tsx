@@ -2,7 +2,8 @@ import Link from "next/link";
 import { Photo } from "@/components/photo";
 import { Badge, Empty, Table, Td, Th } from "@/components/ui/layout";
 import { formatDate, formatDateTime } from "@/server/dates";
-import { formatTk } from "@/server/money";
+import { getT } from "@/server/i18n";
+import { formatMoney } from "@/server/money";
 import type { HotelProfile } from "@/server/modules/hotels/queries";
 import { describeDiscount } from "@/server/pricing";
 
@@ -69,13 +70,14 @@ export function ItemsWithUsTable({ items }: { items: HotelProfile["itemTracking"
   );
 }
 
-export function PricesTable({
+export async function PricesTable({
   prices,
   servicePrices,
 }: {
   prices: HotelProfile["prices"];
   servicePrices: HotelProfile["servicePrices"];
 }) {
+  const t = await getT();
   if (prices.length === 0 && servicePrices.length === 0) return <Empty>No agreed prices yet.</Empty>;
   return (
     <Table>
@@ -92,10 +94,10 @@ export function PricesTable({
         {prices.map((p) => (
           <tr key={p.id}>
             <Td>{p.product.name}</Td>
-            <Td align="right">{formatTk(p.product.basePrice)}</Td>
-            <Td>{describeDiscount(p.discountType, p.discountValue)}</Td>
+            <Td align="right">{formatMoney(p.product.basePrice)}</Td>
+            <Td>{describeDiscount(p.discountType, p.discountValue, t)}</Td>
             <Td align="right" className="font-semibold">
-              {formatTk(p.agreedPrice)}
+              {formatMoney(p.agreedPrice)}
             </Td>
             <Td>{formatDate(p.validFrom)}</Td>
           </tr>
@@ -108,7 +110,7 @@ export function PricesTable({
             <Td align="right">-</Td>
             <Td>-</Td>
             <Td align="right" className="font-semibold">
-              {formatTk(p.price)}
+              {formatMoney(p.price)}
             </Td>
             <Td>{formatDate(p.validFrom)}</Td>
           </tr>
@@ -145,7 +147,7 @@ export function SendsTable({
               </Link>
             </Td>
             <Td align="right">{s._count.lines + s._count.itemLines}</Td>
-            <Td align="right">{formatTk(s.total)}</Td>
+            <Td align="right">{formatMoney(s.total)}</Td>
             <Td>{s.status === "VOIDED" ? <Badge tone="bad">Voided</Badge> : <Badge tone="good">Active</Badge>}</Td>
           </tr>
         ))}

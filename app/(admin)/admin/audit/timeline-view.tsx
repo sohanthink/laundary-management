@@ -3,7 +3,7 @@ import { buttonClass } from "@/components/ui/button";
 import { inputClass } from "@/components/ui/field";
 import { Badge, Card, Empty, Table, Td, Th } from "@/components/ui/layout";
 import { formatDateTime, rangeFromParams } from "@/server/dates";
-import { formatTk } from "@/server/money";
+import { formatMoney } from "@/server/money";
 import { getTimeline, type TimelineKind } from "@/server/modules/reports/timeline";
 
 const KINDS: { value: TimelineKind; label: string }[] = [
@@ -94,7 +94,7 @@ export async function TimelineView({
                 {showHotel && <Td>{e.hotelName}</Td>}
                 <Td>{e.details}</Td>
                 <Td align="right" className="font-medium">
-                  {e.amount === null ? "" : formatTk(e.amount)}
+                  {e.amount === null ? "" : formatMoney(e.amount)}
                 </Td>
               </tr>
             ))}

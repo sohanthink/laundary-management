@@ -8,12 +8,7 @@ import { getItemTracking, getProductTracking } from "@/server/modules/tracking/c
 
 export async function getSendScreen(hotelId: string | undefined) {
   await requirePermission("send:create");
-  const hotels = await db.hotel.findMany({
-    where: { isActive: true },
-    orderBy: { name: "asc" },
-    select: { id: true, name: true },
-  });
-  const empty = { hotels, hotel: null, rows: [], itemRows: [], due: 0 };
+  const empty = { hotel: null, rows: [], itemRows: [], due: 0 };
   if (!hotelId) return empty;
 
   const hotel = await db.hotel.findUnique({ where: { id: hotelId } });
@@ -35,6 +30,7 @@ export async function getSendScreen(hotelId: string | undefined) {
       productId: p.productId,
       name: p.product.name,
       category: p.product.category.name,
+      photoPath: p.product.photoPath,
       basePrice: p.product.basePrice,
       agreedPrice: p.agreedPrice,
       atHotel: atHotel.get(p.productId) ?? 0,
@@ -49,7 +45,7 @@ export async function getSendScreen(hotelId: string | undefined) {
       withUs: withUs.get(p.serviceItemId) ?? 0,
     }));
 
-  return { hotels, hotel, rows, itemRows, due };
+  return { hotel, rows, itemRows, due };
 }
 
 const sendInclude = {

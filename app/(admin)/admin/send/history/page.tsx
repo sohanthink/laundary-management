@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { LinkButton } from "@/components/ui/button";
+import { LinkButton } from "@/components/ui/link-button";
 import { Badge, Card, Empty, PageHeader, Table, Td, Th } from "@/components/ui/layout";
 import { formatDateTime } from "@/server/dates";
-import { formatTk } from "@/server/money";
+import { formatMoney } from "@/server/money";
 import { listSends } from "@/server/modules/send/queries";
+import { getT } from "@/server/i18n";
 
-export const metadata: Metadata = { title: "Send history" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())("Send history") };
+}
 
 export default async function SendHistoryPage() {
   const sends = await listSends({ take: 100 });
@@ -43,7 +46,7 @@ export default async function SendHistoryPage() {
                   <Td>{s.hotel.name}</Td>
                   <Td align="right">{s._count.lines}</Td>
                   <Td align="right" className="font-semibold">
-                    {formatTk(s.total)}
+                    {formatMoney(s.total)}
                   </Td>
                   <Td>{s.status === "VOIDED" ? <Badge tone="bad">Voided</Badge> : <Badge tone="good">Active</Badge>}</Td>
                 </tr>

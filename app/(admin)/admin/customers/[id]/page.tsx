@@ -3,11 +3,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Photo } from "@/components/photo";
 import { ActionForm } from "@/components/ui/action-form";
-import { LinkButton } from "@/components/ui/button";
+import { LinkButton } from "@/components/ui/link-button";
 import { Badge, Card, Empty, PageHeader, Table, Td, Th } from "@/components/ui/layout";
 import { Modal } from "@/components/ui/modal";
 import { formatDateTime } from "@/server/dates";
-import { formatTk } from "@/server/money";
+import { formatMoney } from "@/server/money";
 import {
   createHotel,
   resetOwnerPassword,
@@ -16,11 +16,15 @@ import {
 } from "@/server/modules/customers/actions";
 import { getCustomer } from "@/server/modules/customers/queries";
 import { CustomerFields, HotelFields } from "../fields";
+import { getT } from "@/server/i18n";
 
-export const metadata: Metadata = { title: "Customer" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())("Customer") };
+}
 
 export default async function CustomerPage({ params }: PageProps<"/admin/customers/[id]">) {
   const { id } = await params;
+  const t = await getT();
   const customer = await getCustomer(id);
   if (!customer) notFound();
 
@@ -42,7 +46,7 @@ export default async function CustomerPage({ params }: PageProps<"/admin/custome
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
         <div className="space-y-6">
           <Card
-            title={`Hotels · total due ${formatTk(totalDue)}`}
+            title={`${t("Hotels")} · ${t("Total due")} ${formatMoney(totalDue)}`}
             actions={
               <Modal trigger="Add hotel" title="Add hotel" triggerSize="sm">
                 <ActionForm action={createHotel} submitLabel="Add hotel">
@@ -75,7 +79,7 @@ export default async function CustomerPage({ params }: PageProps<"/admin/custome
                       </Td>
                       <Td>{h.location}</Td>
                       <Td align="right" className="font-semibold">
-                        {formatTk(h.due)}
+                        {formatMoney(h.due)}
                       </Td>
                       <Td align="right">
                         <LinkButton href={`/admin/hotels/${h.id}/prices`} size="sm" variant="ghost">
@@ -103,13 +107,13 @@ export default async function CustomerPage({ params }: PageProps<"/admin/custome
         <Card title="Login">
           <div className="space-y-2 text-sm">
             <p>
-              Status:{" "}
+              {t("Status")}:{" "}
               {customer.user.isActive ? <Badge tone="good">Active</Badge> : <Badge tone="bad">Disabled</Badge>}
             </p>
             {customer.user.mustChangePassword && (
-              <p className="text-(--muted)">Has not set their own password yet.</p>
+              <p className="text-(--muted)">{t("Has not set their own password yet.")}</p>
             )}
-            <p className="text-(--muted)">Created {formatDateTime(customer.user.createdAt)}</p>
+            <p className="text-(--muted)">{t("Created")} {formatDateTime(customer.user.createdAt)}</p>
           </div>
           <div className="mt-5 space-y-4 border-t border-(--line) pt-5">
             <ActionForm

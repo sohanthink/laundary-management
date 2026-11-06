@@ -1,13 +1,12 @@
-import Link from "next/link";
 import type { ComponentProps } from "react";
 
-type Variant = "primary" | "secondary" | "ghost" | "danger" | "dark";
-type Size = "sm" | "md";
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "dark";
+export type ButtonSize = "sm" | "md" | "lg";
 
 const base =
-  "inline-flex items-center justify-center gap-2 rounded-full font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap";
+  "inline-flex items-center justify-center gap-2 rounded-full font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 whitespace-nowrap focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-(--teal-soft)";
 
-const variants: Record<Variant, string> = {
+const variants: Record<ButtonVariant, string> = {
   primary: "bg-(--teal) text-white hover:bg-(--teal-dark)",
   secondary:
     "border border-(--line) bg-white text-(--ink) hover:border-(--teal) hover:text-(--teal)",
@@ -16,20 +15,22 @@ const variants: Record<Variant, string> = {
   dark: "bg-(--ink) text-white hover:bg-black",
 };
 
-const sizes: Record<Size, string> = {
-  sm: "h-9 px-4 text-sm",
-  md: "h-11 px-5 text-sm",
+// Touch-friendly heights: 40 / 48 / 56 px.
+const sizes: Record<ButtonSize, string> = {
+  sm: "h-10 px-4 text-sm",
+  md: "h-12 px-5 text-sm",
+  lg: "h-14 px-6 text-base",
 };
 
 export function buttonClass(
-  variant: Variant = "primary",
-  size: Size = "md",
+  variant: ButtonVariant = "primary",
+  size: ButtonSize = "md",
   extra = "",
 ) {
   return `${base} ${variants[variant]} ${sizes[size]} ${extra}`;
 }
 
-type ButtonProps = ComponentProps<"button"> & { variant?: Variant; size?: Size };
+type ButtonProps = ComponentProps<"button"> & { variant?: ButtonVariant; size?: ButtonSize };
 
 export function Button({
   variant = "primary",
@@ -45,18 +46,4 @@ export function Button({
       {...props}
     />
   );
-}
-
-type LinkButtonProps = ComponentProps<typeof Link> & {
-  variant?: Variant;
-  size?: Size;
-};
-
-export function LinkButton({
-  variant = "secondary",
-  size = "md",
-  className = "",
-  ...props
-}: LinkButtonProps) {
-  return <Link className={buttonClass(variant, size, className)} {...props} />;
 }

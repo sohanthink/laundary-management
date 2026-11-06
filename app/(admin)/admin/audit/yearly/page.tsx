@@ -5,10 +5,13 @@ import { buttonClass } from "@/components/ui/button";
 import { inputClass } from "@/components/ui/field";
 import { Card, Empty, PageHeader, Stat, Table, Td, Th } from "@/components/ui/layout";
 import { currentYear } from "@/server/dates";
-import { formatTk } from "@/server/money";
+import { formatMoney } from "@/server/money";
 import { getYearlyAudit } from "@/server/modules/reports/queries";
+import { getT } from "@/server/i18n";
 
-export const metadata: Metadata = { title: "Yearly audit" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())("Yearly audit") };
+}
 
 export default async function YearlyAuditPage({ searchParams }: PageProps<"/admin/audit/yearly">) {
   const { year: yearParam } = await searchParams;
@@ -39,9 +42,9 @@ export default async function YearlyAuditPage({ searchParams }: PageProps<"/admi
       />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <Stat label="Income (payments received)" value={formatTk(audit.income)} tone="good" />
-        <Stat label="Expenses" value={formatTk(audit.expenses)} tone="warn" />
-        <Stat label="Net" value={formatTk(audit.net)} tone={audit.net >= 0 ? "good" : "warn"} />
+        <Stat label="Income (payments received)" value={formatMoney(audit.income)} tone="good" />
+        <Stat label="Expenses" value={formatMoney(audit.expenses)} tone="warn" />
+        <Stat label="Net" value={formatMoney(audit.net)} tone={audit.net >= 0 ? "good" : "warn"} />
       </div>
 
       <Card title="By hotel">
@@ -75,28 +78,28 @@ export default async function YearlyAuditPage({ searchParams }: PageProps<"/admi
                       {r.hotelName}
                     </Link>
                   </Td>
-                  <Td align="right">{formatTk(r.opening)}</Td>
-                  <Td align="right">{formatTk(r.charges)}</Td>
-                  <Td align="right">{formatTk(r.adjustments)}</Td>
-                  <Td align="right">{formatTk(r.payments)}</Td>
+                  <Td align="right">{formatMoney(r.opening)}</Td>
+                  <Td align="right">{formatMoney(r.charges)}</Td>
+                  <Td align="right">{formatMoney(r.adjustments)}</Td>
+                  <Td align="right">{formatMoney(r.payments)}</Td>
                   <Td align="right" className="font-semibold">
-                    {formatTk(r.closing)}
+                    {formatMoney(r.closing)}
                   </Td>
-                  <Td align="right">{formatTk(r.agreedDiscount)}</Td>
-                  <Td align="right">{formatTk(r.extraDiscount)}</Td>
+                  <Td align="right">{formatMoney(r.agreedDiscount)}</Td>
+                  <Td align="right">{formatMoney(r.extraDiscount)}</Td>
                   <Td align="right">{r.piecesSent}</Td>
                 </tr>
               ))}
               <tr className="font-semibold">
                 <Td>Total</Td>
                 <Td />
-                <Td align="right">{formatTk(t.opening)}</Td>
-                <Td align="right">{formatTk(t.charges)}</Td>
-                <Td align="right">{formatTk(t.adjustments)}</Td>
-                <Td align="right">{formatTk(t.payments)}</Td>
-                <Td align="right">{formatTk(t.closing)}</Td>
-                <Td align="right">{formatTk(t.agreedDiscount)}</Td>
-                <Td align="right">{formatTk(t.extraDiscount)}</Td>
+                <Td align="right">{formatMoney(t.opening)}</Td>
+                <Td align="right">{formatMoney(t.charges)}</Td>
+                <Td align="right">{formatMoney(t.adjustments)}</Td>
+                <Td align="right">{formatMoney(t.payments)}</Td>
+                <Td align="right">{formatMoney(t.closing)}</Td>
+                <Td align="right">{formatMoney(t.agreedDiscount)}</Td>
+                <Td align="right">{formatMoney(t.extraDiscount)}</Td>
                 <Td align="right">{t.piecesSent}</Td>
               </tr>
             </tbody>

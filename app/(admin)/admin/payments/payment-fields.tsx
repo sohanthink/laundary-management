@@ -1,15 +1,16 @@
-import { Field, Select, TextField } from "@/components/ui/field";
+import { Field, Option, Select, TextField } from "@/components/ui/field";
 import { todayIso } from "@/server/dates";
 
 export function PaymentFields() {
   return (
     <>
-      <TextField label="Amount (tk)" name="amount" inputMode="decimal" placeholder="5000" required />
+      <TextField label="Amount (€)" name="amount" inputMode="decimal" placeholder="50,00" required />
       <Field label="Method" name="method">
         <Select name="method" defaultValue="CASH">
-          <option value="CASH">Cash</option>
-          <option value="BANK">Bank</option>
-          <option value="EMPLOYEE">Collected by employee</option>
+          <Option value="CASH">Cash</Option>
+          <Option value="BANK">Bank</Option>
+          <Option value="POS">POS (card)</Option>
+          <Option value="EMPLOYEE">Collected by employee</Option>
         </Select>
       </Field>
       <TextField label="Date" name="date" type="date" defaultValue={todayIso()} required />

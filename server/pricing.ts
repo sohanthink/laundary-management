@@ -1,12 +1,14 @@
-// Pure price math shared by the server and the Send screen. All values in poisha.
+// Pure price math shared by the server and the Send screen. All values in cents.
 
-import { formatTk, toTkInput } from "./money";
+import { formatMoney, toMoneyInput } from "./money";
+
+type Translate = (key: string) => string;
 
 export type DiscountType = "NONE" | "PERCENT" | "FLAT";
 
 /**
  * Agreed price for a hotel. PERCENT value is in basis points (1000 = 10%),
- * FLAT value is poisha off per piece. Never below 0.
+ * FLAT value is cents off per piece. Never below 0.
  */
 export function agreedPrice(basePrice: number, type: DiscountType, value: number): number {
   switch (type) {
@@ -19,10 +21,10 @@ export function agreedPrice(basePrice: number, type: DiscountType, value: number
   }
 }
 
-export function describeDiscount(type: DiscountType, value: number): string {
-  if (type === "PERCENT") return `${toTkInput(value)}%`;
-  if (type === "FLAT") return `${formatTk(value)} off`;
-  return "None";
+export function describeDiscount(type: DiscountType, value: number, t: Translate = (k) => k): string {
+  if (type === "PERCENT") return `${toMoneyInput(value)}%`;
+  if (type === "FLAT") return `${formatMoney(value)} ${t("off")}`;
+  return t("None");
 }
 
 export function finalUnitPrice(agreed: number, extraPerPiece: number): number {

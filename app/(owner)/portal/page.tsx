@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Card, Empty, PageHeader, Stat } from "@/components/ui/layout";
-import { formatTk } from "@/server/money";
+import { formatMoney } from "@/server/money";
 import { getOwnerDashboard } from "@/server/modules/portal/queries";
 
 export default async function PortalHomePage() {
@@ -10,7 +10,7 @@ export default async function PortalHomePage() {
     <>
       <PageHeader title={`Hello, ${user.name}`} description="Your hotels, deliveries and dues." />
       <div className="mb-6 grid gap-4 sm:grid-cols-2">
-        <Stat label="Total due" value={formatTk(totalDue)} tone={totalDue > 0 ? "warn" : "good"} />
+        <Stat label="Total due" value={formatMoney(totalDue)} tone={totalDue > 0 ? "warn" : "good"} />
         <Stat label="Hotels" value={rows.length} />
       </div>
       {rows.length === 0 ? (
@@ -30,7 +30,7 @@ export default async function PortalHomePage() {
               <div className="mt-4 flex gap-8 text-sm">
                 <div>
                   <p className="text-(--muted)">Due</p>
-                  <p className="text-xl font-semibold text-(--teal)">{formatTk(due)}</p>
+                  <p className="text-xl font-semibold text-(--teal)">{formatMoney(due)}</p>
                 </div>
                 <div>
                   <p className="text-(--muted)">Our pieces with you</p>

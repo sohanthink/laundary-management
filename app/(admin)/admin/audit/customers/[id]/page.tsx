@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PrintButton } from "@/components/print-button";
-import { LinkButton } from "@/components/ui/button";
+import { LinkButton } from "@/components/ui/link-button";
 import { PageHeader } from "@/components/ui/layout";
 import { requirePermission } from "@/server/auth/dal";
 import { db } from "@/server/db";
 import { TimelineView } from "../../timeline-view";
+import { getT } from "@/server/i18n";
 
-export const metadata: Metadata = { title: "Customer audit" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())("Customer audit") };
+}
 
 export default async function CustomerAuditPage({ params, searchParams }: PageProps<"/admin/audit/customers/[id]">) {
   await requirePermission("report:view");

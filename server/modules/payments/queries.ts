@@ -1,7 +1,7 @@
 import "server-only";
 import { requirePermission } from "@/server/auth/dal";
 import { db } from "@/server/db";
-import { endOfDhakaDay, startOfDhakaDay } from "@/server/dates";
+import { endOfLocalDay, startOfLocalDay } from "@/server/dates";
 
 export async function listPayments(filter: { hotelId?: string; from: string; to: string }) {
   await requirePermission("payment:manage");
@@ -9,7 +9,7 @@ export async function listPayments(filter: { hotelId?: string; from: string; to:
     where: {
       type: "PAYMENT",
       ...(filter.hotelId ? { hotelId: filter.hotelId } : {}),
-      date: { gte: startOfDhakaDay(filter.from), lt: endOfDhakaDay(filter.to) },
+      date: { gte: startOfLocalDay(filter.from), lt: endOfLocalDay(filter.to) },
     },
     include: { hotel: { include: { customer: { include: { user: true } } } } },
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],

@@ -4,7 +4,7 @@ import { Field, Input, Select, TextField } from "@/components/ui/field";
 import { Card, Empty } from "@/components/ui/layout";
 import { requirePermission } from "@/server/auth/dal";
 import { db } from "@/server/db";
-import { toTkInput } from "@/server/money";
+import { toMoneyInput } from "@/server/money";
 import { removeHotelServicePrice, setHotelServicePrice } from "@/server/modules/prices/actions";
 import { activeServicePrices } from "@/server/modules/prices/queries";
 
@@ -42,8 +42,8 @@ export async function ServicePricesCard({ hotelId }: { hotelId: string }) {
                 <input type="hidden" name="hotelId" value={hotelId} />
                 <input type="hidden" name="serviceItemId" value={p.serviceItemId} />
                 <span className="min-w-32 font-medium">{p.serviceItem.name}</span>
-                <Input name="price" defaultValue={toTkInput(p.price)} inputMode="decimal" className="w-28" />
-                <span className="text-sm text-(--muted)">tk / piece</span>
+                <Input name="price" defaultValue={toMoneyInput(p.price)} inputMode="decimal" className="w-28" />
+                <span className="text-sm text-(--muted)">€ / piece</span>
               </ActionForm>
               <ActionForm
                 action={removeHotelServicePrice}
@@ -73,7 +73,7 @@ export async function ServicePricesCard({ hotelId }: { hotelId: string }) {
               ))}
             </Select>
           </Field>
-          <TextField label="Price per piece (tk)" name="price" inputMode="decimal" placeholder="30" required />
+          <TextField label="Price per piece (€)" name="price" inputMode="decimal" placeholder="30" required />
         </ActionForm>
       )}
     </Card>

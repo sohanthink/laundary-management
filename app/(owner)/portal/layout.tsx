@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 };
 
 const NAV = [
-  { href: "/portal", label: "My hotels", exact: true },
+  { href: "/portal/invoices", label: "Invoices" },
   { href: "/portal/profile", label: "Profile" },
 ];
 

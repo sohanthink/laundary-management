@@ -10,6 +10,7 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
+import { useT } from "@/components/i18n-provider";
 import type { ActionState } from "@/server/forms";
 import { Button } from "./button";
 import { useModal } from "./modal";
@@ -48,6 +49,7 @@ export function ActionForm({
   className = "space-y-4",
   footer,
 }: ActionFormProps) {
+  const t = useT();
   const [state, formAction, pending] = useActionState(action, undefined);
   const formRef = useRef<HTMLFormElement>(null);
   const modal = useModal();
@@ -62,7 +64,7 @@ export function ActionForm({
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     // Submitting manually keeps the typed values when the server returns an error.
     event.preventDefault();
-    if (confirm && !window.confirm(confirm)) return;
+    if (confirm && !window.confirm(t(confirm))) return;
     const formData = new FormData(event.currentTarget);
     startTransition(() => formAction(formData));
   }
@@ -76,7 +78,7 @@ export function ActionForm({
         <FormMessage state={closesModal && state?.ok ? undefined : state} />
         <div className="flex items-center gap-3">
           <Button type="submit" variant={submitVariant} disabled={pending}>
-            {pending ? pendingLabel : submitLabel}
+            {pending ? t(pendingLabel) : t(submitLabel)}
           </Button>
           {footer}
         </div>
@@ -86,20 +88,21 @@ export function ActionForm({
 }
 
 export function FormMessage({ state }: { state: ActionState }) {
+  const t = useT();
   if (state?.error) {
     return (
       <p
         role="alert"
         className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
       >
-        {state.error}
+        {t(state.error)}
       </p>
     );
   }
   if (state?.ok && state.message) {
     return (
       <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-        {state.message}
+        {t(state.message)}
       </p>
     );
   }

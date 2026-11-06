@@ -4,13 +4,16 @@ import { DateRangeForm } from "@/components/date-range-form";
 import { ItemsWithUsTable, PricesTable, SendsTable, TrackingTable } from "@/components/hotel-sections";
 import { PrintButton } from "@/components/print-button";
 import { StatementTable } from "@/components/statement-table";
-import { LinkButton } from "@/components/ui/button";
+import { LinkButton } from "@/components/ui/link-button";
 import { Card, PageHeader, Stat } from "@/components/ui/layout";
 import { rangeFromParams } from "@/server/dates";
-import { formatTk } from "@/server/money";
+import { formatMoney } from "@/server/money";
 import { getOwnerHotel } from "@/server/modules/portal/queries";
+import { getT } from "@/server/i18n";
 
-export const metadata: Metadata = { title: "Hotel" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())("Hotel") };
+}
 
 export default async function OwnerHotelPage({ params, searchParams }: PageProps<"/portal/hotels/[id]">) {
   const { id } = await params;
@@ -33,7 +36,7 @@ export default async function OwnerHotelPage({ params, searchParams }: PageProps
         }
       />
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <Stat label="Current due" value={formatTk(due)} tone={due > 0 ? "warn" : "good"} />
+        <Stat label="Current due" value={formatMoney(due)} tone={due > 0 ? "warn" : "good"} />
         <Stat label="Our pieces with you" value={tracking.reduce((s, t) => s + t.atHotel, 0)} />
         <Stat label="Your items with us" value={itemTracking.reduce((s, t) => s + t.withUs, 0)} />
       </div>

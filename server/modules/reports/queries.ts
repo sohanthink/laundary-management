@@ -88,7 +88,7 @@ export async function getYearlyAudit(year: number) {
 export type YearlyAudit = Awaited<ReturnType<typeof getYearlyAudit>>;
 
 export function yearlyAuditCsv(year: number, audit: YearlyAudit) {
-  const tk = (p: number) => (p / 100).toFixed(2);
+  const eur = (p: number) => (p / 100).toFixed(2).replace(".", ",");
   const header = [
     "Customer",
     "Hotel",
@@ -104,35 +104,36 @@ export function yearlyAuditCsv(year: number, audit: YearlyAudit) {
   const lines = audit.rows.map((r) => [
     r.customerName,
     r.hotelName,
-    tk(r.opening),
-    tk(r.charges),
-    tk(r.adjustments),
-    tk(r.payments),
-    tk(r.closing),
-    tk(r.agreedDiscount),
-    tk(r.extraDiscount),
+    eur(r.opening),
+    eur(r.charges),
+    eur(r.adjustments),
+    eur(r.payments),
+    eur(r.closing),
+    eur(r.agreedDiscount),
+    eur(r.extraDiscount),
     String(r.piecesSent),
   ]);
   const t = audit.totals;
   lines.push([
     "TOTAL",
     "",
-    tk(t.opening),
-    tk(t.charges),
-    tk(t.adjustments),
-    tk(t.payments),
-    tk(t.closing),
-    tk(t.agreedDiscount),
-    tk(t.extraDiscount),
+    eur(t.opening),
+    eur(t.charges),
+    eur(t.adjustments),
+    eur(t.payments),
+    eur(t.closing),
+    eur(t.agreedDiscount),
+    eur(t.extraDiscount),
     String(t.piecesSent),
   ]);
   lines.push([]);
-  lines.push(["Income (payments received)", tk(audit.income)]);
-  lines.push(["Expenses", tk(audit.expenses)]);
-  lines.push(["Net", tk(audit.net)]);
+  lines.push(["Income (payments received)", eur(audit.income)]);
+  lines.push(["Expenses", eur(audit.expenses)]);
+  lines.push(["Net", eur(audit.net)]);
 
-  const escape = (v: string) => (/[",\n]/.test(v) ? `"${v.replaceAll('"', '""')}"` : v);
-  return [header, ...lines].map((row) => row.map(escape).join(",")).join("\n");
+  // Semicolons and decimal commas so Italian Excel opens it correctly.
+  const escape = (v: string) => (/[";\n]/.test(v) ? `"${v.replaceAll('"', '""')}"` : v);
+  return [header, ...lines].map((row) => row.map(escape).join(";")).join("\n");
 }
 
 // ---------- Long-held items ----------

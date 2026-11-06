@@ -2,10 +2,14 @@
 
 Linen rental management for hotels: track what you send, what comes back, and what each hotel owes.
 
-- **Admin**: products, customers and hotels, agreed prices, Send and Collect (including the hotel's own items you wash), tracking, payments, expenses, reports.
+- **Admin**: tile home screen (Daily / Office / Setup / System), touch-friendly Send and Collect screens (tap tiles, number pad), tracking, invoices, payments, expenses, daily summary and reports.
 - **Hotel owner**: read-only portal with their hotels, pieces held, statement, receipts and due.
 
 Built with Next.js 16, PostgreSQL (Neon) + Prisma 6, custom auth (bcrypt + database sessions), Gmail via Nodemailer, and local photo storage.
+
+- Money in euro (`1.234,56 €`); inputs accept `18,50` or `18.50`. Dates and days follow Italian time (Europe/Rome).
+- English / Italian switch in the top bar (and on the sign-in page). Translations live in `i18n/it.ts`: the key is the English text, so anything missing simply shows in English.
+- Invoices: pick a hotel and a period; sends and rejected-piece credits in that period become one numbered invoice (1/2026, 2/2026, ...). No VAT yet. Print or "Save as PDF" from the invoice page. Company details for the invoice header are under Setup > Company details.
 
 ## Quick try without any accounts
 

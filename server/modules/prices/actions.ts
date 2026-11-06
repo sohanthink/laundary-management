@@ -3,9 +3,10 @@
 import { z } from "zod";
 import { logAudit } from "@/server/audit";
 import { requirePermission } from "@/server/auth/dal";
+import { getT } from "@/server/i18n";
 import { db } from "@/server/db";
 import { id, money, parseForm, type ActionState } from "@/server/forms";
-import { isMoneyInput, percentToBasisPoints, toPoisha } from "@/server/money";
+import { isMoneyInput, percentToBasisPoints, toCents } from "@/server/money";
 import { done } from "@/server/modules/shared";
 import { agreedPrice } from "@/server/pricing";
 
@@ -17,7 +18,7 @@ const dealSchema = z.object({
     .string()
     .trim()
     .optional()
-    .refine((v) => !v || isMoneyInput(v), "Enter a number like 10 or 2.5"),
+    .refine((v) => !v || isMoneyInput(v), "Enter a number like 10 or 2,5"),
 });
 
 /** Adds a product to the deal or changes its discount. The old price row is closed, never edited. */
@@ -41,7 +42,7 @@ export async function setHotelPrice(_: ActionState, formData: FormData): Promise
       return { fieldErrors: { discountValue: ["Percent can't be more than 100"] } };
     }
   } else if (discountType === "FLAT") {
-    discountValue = toPoisha(rawValue);
+    discountValue = toCents(rawValue);
     if (discountValue > product.basePrice) {
       return { fieldErrors: { discountValue: ["Discount can't be more than the base price"] } };
     }
@@ -80,7 +81,7 @@ export async function setHotelPrice(_: ActionState, formData: FormData): Promise
     );
   });
 
-  return done(`${product.name} is set for ${hotel.name}.`);
+  return done((await getT())("{product} is set for {hotel}.", { product: product.name, hotel: hotel.name }));
 }
 
 const removeSchema = z.object({ hotelId: id, productId: id });
@@ -133,7 +134,7 @@ export async function setHotelServicePrice(_: ActionState, formData: FormData): 
       tx,
     );
   });
-  return done(`Washing price for ${item.name} saved.`);
+  return done((await getT())("Washing price for {item} saved.", { item: item.name }));
 }
 
 const removeServiceSchema = z.object({ hotelId: id, serviceItemId: id });

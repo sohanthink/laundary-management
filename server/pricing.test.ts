@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { toPoisha } from "./money";
+import { toCents } from "./money";
 import { agreedPrice, calculateSend, describeDiscount, finalUnitPrice } from "./pricing";
 
 describe("agreedPrice", () => {
   it("applies a percent discount", () => {
-    expect(agreedPrice(2000, "PERCENT", 1000)).toBe(1800); // 20 tk - 10% = 18 tk
+    expect(agreedPrice(2000, "PERCENT", 1000)).toBe(1800); // 20 € - 10% = 18 €
   });
 
   it("applies a flat discount", () => {
-    expect(agreedPrice(3000, "FLAT", 500)).toBe(2500); // 30 tk - 5 tk = 25 tk
+    expect(agreedPrice(3000, "FLAT", 500)).toBe(2500); // 30 € - 5 € = 25 €
   });
 
   it("keeps the base price with no discount", () => {
@@ -21,7 +21,7 @@ describe("agreedPrice", () => {
     expect(agreedPrice(1000, "PERCENT", 15000)).toBe(0);
   });
 
-  it("rounds to the nearest poisha", () => {
+  it("rounds to the nearest cents", () => {
     expect(agreedPrice(999, "PERCENT", 250)).toBe(974); // 9.99 - 2.5% = 9.74025
   });
 });
@@ -38,11 +38,11 @@ describe("calculateSend", () => {
   it("matches the example send screen", () => {
     const result = calculateSend(
       [
-        { basePrice: toPoisha("20"), agreedPrice: toPoisha("18"), extraPerPiece: toPoisha("2"), quantity: 50 },
-        { basePrice: toPoisha("30"), agreedPrice: toPoisha("25"), extraPerPiece: 0, quantity: 30 },
-        { basePrice: toPoisha("15"), agreedPrice: toPoisha("15"), extraPerPiece: 0, quantity: 0 },
+        { basePrice: toCents("20"), agreedPrice: toCents("18"), extraPerPiece: toCents("2"), quantity: 50 },
+        { basePrice: toCents("30"), agreedPrice: toCents("25"), extraPerPiece: 0, quantity: 30 },
+        { basePrice: toCents("15"), agreedPrice: toCents("15"), extraPerPiece: 0, quantity: 0 },
       ],
-      toPoisha("50"),
+      toCents("50"),
     );
     expect(result.lines.map((l) => l.lineTotal)).toEqual([80000, 75000, 0]);
     expect(result.subtotal).toBe(155000);
@@ -76,7 +76,7 @@ describe("calculateSend", () => {
 describe("describeDiscount", () => {
   it("formats each type", () => {
     expect(describeDiscount("PERCENT", 1000)).toBe("10%");
-    expect(describeDiscount("FLAT", 500)).toBe("5.00 tk off");
+    expect(describeDiscount("FLAT", 500)).toBe("5,00 € off");
     expect(describeDiscount("NONE", 0)).toBe("None");
   });
 });

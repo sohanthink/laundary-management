@@ -5,22 +5,26 @@ import { DateRangeForm } from "@/components/date-range-form";
 import { ItemsWithUsTable, PricesTable, SendsTable, TrackingTable } from "@/components/hotel-sections";
 import { StatementTable } from "@/components/statement-table";
 import { ActionForm } from "@/components/ui/action-form";
-import { LinkButton } from "@/components/ui/button";
-import { Field, Select, TextField } from "@/components/ui/field";
+import { LinkButton } from "@/components/ui/link-button";
+import { Field, Option, Select, TextField } from "@/components/ui/field";
 import { Badge, Card, PageHeader, Stat } from "@/components/ui/layout";
 import { Modal } from "@/components/ui/modal";
 import { rangeFromParams, todayIso } from "@/server/dates";
-import { formatTk } from "@/server/money";
+import { formatMoney } from "@/server/money";
 import { updateHotel } from "@/server/modules/customers/actions";
 import { getHotelProfile } from "@/server/modules/hotels/queries";
 import { addAdjustment, recordPayment, voidLedgerEntry } from "@/server/modules/payments/actions";
 import { HotelFields } from "../../customers/fields";
 import { PaymentFields } from "../../payments/payment-fields";
+import { getT } from "@/server/i18n";
 
-export const metadata: Metadata = { title: "Hotel" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())("Hotel") };
+}
 
 export default async function HotelProfilePage({ params, searchParams }: PageProps<"/admin/hotels/[id]">) {
   const { id } = await params;
+  const t = await getT();
   const sp = await searchParams;
   const range = rangeFromParams(sp.from, sp.to);
   const profile = await getHotelProfile(id, range);
@@ -35,7 +39,7 @@ export default async function HotelProfilePage({ params, searchParams }: PagePro
         title={hotel.name}
         description={
           <>
-            {hotel.location} · Owner{" "}
+            {hotel.location} · {t("Owner")}{" "}
             <Link href={`/admin/customers/${hotel.customerId}`} className="text-(--teal) underline">
               {hotel.customer.user.name}
             </Link>{" "}
@@ -49,19 +53,20 @@ export default async function HotelProfilePage({ params, searchParams }: PagePro
             </LinkButton>
             <LinkButton href={`/admin/collect?hotel=${hotel.id}`}>Collect</LinkButton>
             <LinkButton href={`/admin/hotels/${hotel.id}/prices`}>Prices</LinkButton>
+            <LinkButton href={`/admin/invoices/new?hotel=${hotel.id}`}>Invoice</LinkButton>
             <LinkButton href={`/admin/audit/hotels/${hotel.id}`}>Audit</LinkButton>
           </>
         }
       />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <Stat label="Current due" value={formatTk(due)} tone={due > 0 ? "warn" : "good"} />
+        <Stat label="Current due" value={formatMoney(due)} tone={due > 0 ? "warn" : "good"} />
         <Stat label="Your pieces at hotel" value={piecesHeld} />
         <Stat label="Their items with us" value={itemsWithUs} />
       </div>
 
       <div className="mb-6 flex flex-wrap gap-2">
-        <Modal trigger="Record payment" title={`Payment from ${hotel.name}`}>
+        <Modal trigger="Record payment" title={`${t("Payment from")} ${hotel.name}`}>
           <ActionForm action={recordPayment} submitLabel="Record payment">
             <input type="hidden" name="hotelId" value={hotel.id} />
             <PaymentFields />
@@ -77,11 +82,11 @@ export default async function HotelProfilePage({ params, searchParams }: PagePro
             <input type="hidden" name="hotelId" value={hotel.id} />
             <Field label="Type" name="direction">
               <Select name="direction" defaultValue="DECREASE">
-                <option value="DECREASE">Reduce the due (discount, correction)</option>
-                <option value="INCREASE">Increase the due (missed charge)</option>
+                <Option value="DECREASE">Reduce the due (discount, correction)</Option>
+                <Option value="INCREASE">Increase the due (missed charge)</Option>
               </Select>
             </Field>
-            <TextField label="Amount (tk)" name="amount" inputMode="decimal" required />
+            <TextField label="Amount (€)" name="amount" inputMode="decimal" required />
             <TextField label="Date" name="date" type="date" defaultValue={todayIso()} required />
             <TextField label="Reason" name="note" required />
           </ActionForm>
@@ -92,7 +97,7 @@ export default async function HotelProfilePage({ params, searchParams }: PagePro
             <HotelFields hotel={hotel} />
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" name="isActive" defaultChecked={hotel.isActive} className="size-4 accent-(--teal)" />
-              Active
+              {t("Active")}
             </label>
           </ActionForm>
         </Modal>
@@ -149,10 +154,11 @@ export default async function HotelProfilePage({ params, searchParams }: PagePro
   );
 }
 
-function Detail({ label, value }: { label: string; value: string | null }) {
+async function Detail({ label, value }: { label: string; value: string | null }) {
+  const t = await getT();
   return (
     <div>
-      <dt className="text-xs text-(--muted)">{label}</dt>
+      <dt className="text-xs text-(--muted)">{t(label)}</dt>
       <dd className="font-medium">{value || "-"}</dd>
     </div>
   );

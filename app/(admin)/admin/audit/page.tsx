@@ -3,8 +3,11 @@ import Link from "next/link";
 import { Card, Empty, PageHeader } from "@/components/ui/layout";
 import { requirePermission } from "@/server/auth/dal";
 import { db } from "@/server/db";
+import { getT } from "@/server/i18n";
 
-export const metadata: Metadata = { title: "Reports" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())("Reports") };
+}
 
 const REPORTS = [
   { href: "/admin/audit/yearly", title: "Yearly audit", text: "Opening due, charges, payments and closing due for every hotel. CSV export." },
@@ -14,6 +17,7 @@ const REPORTS = [
 
 export default async function ReportsPage() {
   await requirePermission("report:view");
+  const t = await getT();
   const customers = await db.customer.findMany({
     include: { user: true, hotels: { orderBy: { name: "asc" } } },
     orderBy: { user: { name: "asc" } },
@@ -29,8 +33,8 @@ export default async function ReportsPage() {
             href={r.href}
             className="rounded-3xl border border-(--line) bg-white p-5 transition hover:border-(--teal)"
           >
-            <p className="font-semibold text-(--ink)">{r.title}</p>
-            <p className="mt-1 text-sm text-(--muted)">{r.text}</p>
+            <p className="font-semibold text-(--ink)">{t(r.title)}</p>
+            <p className="mt-1 text-sm text-(--muted)">{t(r.text)}</p>
           </Link>
         ))}
       </div>

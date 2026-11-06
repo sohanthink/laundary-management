@@ -4,9 +4,10 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { logAudit } from "@/server/audit";
 import { requirePermission } from "@/server/auth/dal";
+import { getT } from "@/server/i18n";
 import { db } from "@/server/db";
 import { id, jsonArray, optionalText, parseForm, quantity, type ActionState } from "@/server/forms";
-import { formatTk, isMoneyInput, toPoisha } from "@/server/money";
+import { formatMoney, isMoneyInput, toCents } from "@/server/money";
 import { BusinessError, done, SERIALIZABLE, toActionError } from "@/server/modules/shared";
 import { assertEnough } from "@/server/modules/stock/core";
 
@@ -20,7 +21,7 @@ const collectSchema = z.object({
       creditPerPiece: z
         .string()
         .trim()
-        .refine((v) => !v || isMoneyInput(v), "Credit must be a number like 18 or 18.50"),
+        .refine((v) => !v || isMoneyInput(v), "Credit must be a number like 18 or 18,50"),
     }),
   ),
   items: jsonArray(z.object({ serviceItemId: z.string().min(1), quantity })),
@@ -39,12 +40,13 @@ export async function collectFromHotel(_: ActionState, formData: FormData): Prom
 
   const lines = parsed.data.lines
     .filter((l) => l.returned > 0 || l.rejected > 0)
-    .map((l) => ({ ...l, creditPerPiece: l.creditPerPiece ? toPoisha(l.creditPerPiece) : 0 }));
+    .map((l) => ({ ...l, creditPerPiece: l.creditPerPiece ? toCents(l.creditPerPiece) : 0 }));
   const items = parsed.data.items.filter((i) => i.quantity > 0);
   if (lines.length === 0 && items.length === 0) {
     return { error: "Enter a quantity for at least one product or item." };
   }
 
+  const t = await getT();
   let summary = "";
   try {
     await db.$transaction(async (tx) => {
@@ -121,9 +123,12 @@ export async function collectFromHotel(_: ActionState, formData: FormData): Prom
       const rejected = lines.reduce((s, l) => s + l.rejected, 0);
       const collected = items.reduce((s, i) => s + i.quantity, 0);
       summary = [
-        returned > 0 && `${returned} used pieces back`,
-        rejected > 0 && `${rejected} rejected${credit > 0 ? ` (credited ${formatTk(credit)})` : ""}`,
-        collected > 0 && `${collected} of their items collected`,
+        returned > 0 && t("{count} used pieces back", { count: returned }),
+        rejected > 0 &&
+          (credit > 0
+            ? t("{count} rejected (credited {amount})", { count: rejected, amount: formatMoney(credit) })
+            : t("{count} rejected", { count: rejected })),
+        collected > 0 && t("{count} of their items collected", { count: collected }),
       ]
         .filter(Boolean)
         .join(", ");
@@ -136,5 +141,5 @@ export async function collectFromHotel(_: ActionState, formData: FormData): Prom
   } catch (error) {
     return toActionError(error);
   }
-  return done(`Saved: ${summary}.`);
+  return done(t("Saved: {summary}.", { summary }));
 }

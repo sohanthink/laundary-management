@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useT } from "@/components/i18n-provider";
 import { Field, Input, Select } from "@/components/ui/field";
-import { formatTk, isMoneyInput, toPoisha } from "@/server/money";
+import { formatMoney, isMoneyInput, toCents } from "@/server/money";
 import { agreedPrice, type DiscountType } from "@/server/pricing";
 
 type Product = { id: string; name: string; basePrice: number };
@@ -16,12 +17,13 @@ type Props = {
 };
 
 export function DiscountFields({ product, products, defaultType = "NONE", defaultValue = "" }: Props) {
+  const t = useT();
   const [productId, setProductId] = useState(product?.id ?? products?.[0]?.id ?? "");
   const [type, setType] = useState<DiscountType>(defaultType);
   const [value, setValue] = useState(defaultValue);
 
   const selected = product ?? products?.find((p) => p.id === productId);
-  const numeric = isMoneyInput(value || "0") ? toPoisha(value || "0") : 0;
+  const numeric = isMoneyInput(value || "0") ? toCents(value || "0") : 0;
   const preview = selected ? agreedPrice(selected.basePrice, type, numeric) : null;
 
   return (
@@ -30,13 +32,13 @@ export function DiscountFields({ product, products, defaultType = "NONE", defaul
         <input type="hidden" name="productId" value={product.id} />
       ) : (
         <Field label="Product" name="productId">
-          <Select name="productId" value={productId} onChange={(e) => setProductId(e.target.value)} required>
+          <Select name="productId" defaultValue={productId} onChange={(e) => setProductId(e.target.value)} required>
             <option value="" disabled>
               Choose a product
             </option>
             {products?.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.name} ({formatTk(p.basePrice)})
+                {p.name} ({formatMoney(p.basePrice)})
               </option>
             ))}
           </Select>
@@ -45,17 +47,17 @@ export function DiscountFields({ product, products, defaultType = "NONE", defaul
       {product && (
         <div className="text-sm">
           <p className="font-medium">{product.name}</p>
-          <p className="text-(--muted)">Base {formatTk(product.basePrice)}</p>
+          <p className="text-(--muted)">Base {formatMoney(product.basePrice)}</p>
         </div>
       )}
       <Field label="Discount" name="discountType">
         <Select name="discountType" value={type} onChange={(e) => setType(e.target.value as DiscountType)}>
-          <option value="NONE">No discount</option>
-          <option value="PERCENT">Percent (%)</option>
-          <option value="FLAT">Flat (tk off)</option>
+          <option value="NONE">{t("No discount")}</option>
+          <option value="PERCENT">{t("Percent (%)")}</option>
+          <option value="FLAT">{t("Flat (€ off)")}</option>
         </Select>
       </Field>
-      <Field label={type === "PERCENT" ? "Percent" : "Tk off per piece"} name="discountValue">
+      <Field label={type === "PERCENT" ? "Percent" : "€ off per piece"} name="discountValue">
         <Input
           name="discountValue"
           inputMode="decimal"
@@ -66,8 +68,8 @@ export function DiscountFields({ product, products, defaultType = "NONE", defaul
         />
       </Field>
       <div className="pb-2.5 text-sm">
-        <span className="text-(--muted)">Agreed </span>
-        <span className="font-semibold text-(--teal)">{preview === null ? "-" : formatTk(preview)}</span>
+        <span className="text-(--muted)">{t("Agreed")} </span>
+        <span className="font-semibold text-(--teal)">{preview === null ? "-" : formatMoney(preview)}</span>
       </div>
     </div>
   );
