@@ -29,7 +29,7 @@ export default async function HotelProfilePage({ params, searchParams }: PagePro
   const range = rangeFromParams(sp.from, sp.to);
   const profile = await getHotelProfile(id, range);
   if (!profile) notFound();
-  const { hotel, prices, servicePrices, tracking, itemTracking, due, statement, sends } = profile;
+  const { hotel, prices, tracking, itemTracking, due, statement, sends } = profile;
   const piecesHeld = tracking.reduce((s, t) => s + t.atHotel, 0);
   const itemsWithUs = itemTracking.reduce((s, t) => s + t.withUs, 0);
 
@@ -132,7 +132,7 @@ export default async function HotelProfilePage({ params, searchParams }: PagePro
 
         <div className="grid gap-6 lg:grid-cols-2">
           <Card title="Agreed prices" actions={<LinkButton href={`/admin/hotels/${hotel.id}/prices`} size="sm">Edit prices</LinkButton>}>
-            <PricesTable prices={prices} servicePrices={servicePrices} />
+            <PricesTable prices={prices} />
           </Card>
           <Card title="Recent sends" actions={<LinkButton href={`/admin/audit/hotels/${hotel.id}`} size="sm" variant="ghost">All activity</LinkButton>}>
             <SendsTable sends={sends} href={(sendId) => `/admin/send/${sendId}`} />

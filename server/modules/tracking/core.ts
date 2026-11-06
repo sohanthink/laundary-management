@@ -50,9 +50,16 @@ export async function getProductTracking(client: Client, hotelId?: string): Prom
     .filter((t) => t.sent > 0 || t.atHotel !== 0);
 }
 
+/** Identifies one kind of hotel-owned item: a product type, or a free name for "Other". */
+export function itemKey(productId: string | null, itemName: string) {
+  return productId ? `p:${productId}` : `n:${itemName.trim().toLowerCase()}`;
+}
+
 export type ItemTrack = {
   hotelId: string;
-  serviceItemId: string;
+  key: string;
+  productId: string | null;
+  name: string;
   collected: number;
   delivered: number;
   withUs: number;
@@ -61,7 +68,7 @@ export type ItemTrack = {
 /** Hotel's own items: collected for washing / delivered back / still with us. No auth check. */
 export async function getItemTracking(client: Client, hotelId?: string): Promise<ItemTrack[]> {
   const rows = await client.hotelItemMovement.groupBy({
-    by: ["hotelId", "serviceItemId", "type"],
+    by: ["hotelId", "productId", "itemName", "type"],
     where: {
       ...(hotelId ? { hotelId } : {}),
       OR: [{ sendId: null }, { send: { status: "ACTIVE" } }],
@@ -69,12 +76,21 @@ export async function getItemTracking(client: Client, hotelId?: string): Promise
     _sum: { quantity: true },
   });
 
+  const productIds = [...new Set(rows.map((r) => r.productId).filter((v): v is string => !!v))];
+  const products = productIds.length
+    ? await client.product.findMany({ where: { id: { in: productIds } }, select: { id: true, name: true } })
+    : [];
+  const productName = new Map(products.map((p) => [p.id, p.name]));
+
   const byKey = new Map<string, ItemTrack>();
   for (const row of rows) {
-    const key = `${row.hotelId}:${row.serviceItemId}`;
-    const track = byKey.get(key) ?? {
+    const key = itemKey(row.productId, row.itemName);
+    const mapKey = `${row.hotelId}:${key}`;
+    const track = byKey.get(mapKey) ?? {
       hotelId: row.hotelId,
-      serviceItemId: row.serviceItemId,
+      key,
+      productId: row.productId,
+      name: (row.productId && productName.get(row.productId)) || row.itemName,
       collected: 0,
       delivered: 0,
       withUs: 0,
@@ -82,9 +98,27 @@ export async function getItemTracking(client: Client, hotelId?: string): Promise
     const qty = row._sum.quantity ?? 0;
     if (row.type === "COLLECTED") track.collected += qty;
     else track.delivered += qty;
-    byKey.set(key, track);
+    byKey.set(mapKey, track);
   }
-  return [...byKey.values()].map((t) => ({ ...t, withUs: t.collected - t.delivered }));
+  return [...byKey.values()]
+    .map((t) => ({ ...t, withUs: t.collected - t.delivered }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Last washing price per piece charged to this hotel for each of its own item kinds. */
+export async function lastWashingPrices(client: Client, hotelId: string) {
+  const rows = await client.hotelItemMovement.findMany({
+    where: { hotelId, type: "DELIVERED", send: { status: "ACTIVE" } },
+    orderBy: { createdAt: "desc" },
+    select: { productId: true, itemName: true, unitPriceSnapshot: true },
+    take: 500,
+  });
+  const prices = new Map<string, number>();
+  for (const r of rows) {
+    const key = itemKey(r.productId, r.itemName);
+    if (!prices.has(key)) prices.set(key, r.unitPriceSnapshot);
+  }
+  return prices;
 }
 
 /** Last price this hotel was charged per piece for each product (for crediting rejects). */

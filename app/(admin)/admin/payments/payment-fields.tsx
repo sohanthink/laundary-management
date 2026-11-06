@@ -4,7 +4,7 @@ import { todayIso } from "@/server/dates";
 export function PaymentFields() {
   return (
     <>
-      <TextField label="Amount (€)" name="amount" inputMode="decimal" placeholder="50,00" required />
+      <TextField label="Amount (€)" name="amount" inputMode="decimal" placeholder="50.00" required />
       <Field label="Method" name="method">
         <Select name="method" defaultValue="CASH">
           <Option value="CASH">Cash</Option>

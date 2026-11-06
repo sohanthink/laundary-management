@@ -2,7 +2,7 @@
 
 import { Photo } from "@/components/photo";
 
-/** Tap to add one. Shows a count badge once something is in the list. */
+/** Compact tap-to-add tile, so many products fit without scrolling. */
 export function ProductTile({
   name,
   price,
@@ -25,22 +25,20 @@ export function ProductTile({
       type="button"
       onClick={onTap}
       aria-pressed={selected}
-      className={`relative flex min-h-28 flex-col justify-between gap-2 rounded-2xl border-2 bg-white p-3 text-left transition active:scale-[0.97] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-(--teal-soft) ${
+      className={`relative flex min-h-24 flex-col justify-between gap-1 rounded-xl border-2 bg-white p-2.5 text-left transition active:scale-[0.97] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-(--teal-soft) ${
         selected ? "border-(--teal) ring-4 ring-(--teal-soft)" : "border-(--line) hover:border-(--teal)"
       }`}
     >
-      <span className="flex items-start gap-2 pr-8">
-        <span className="text-base font-semibold leading-tight text-(--ink)">{name}</span>
-      </span>
-      <span className="flex items-end justify-between gap-2">
-        <span>
-          {price && <span className="block text-base font-semibold tabular-nums text-(--teal)">{price}</span>}
-          {info && <span className="block text-xs text-(--muted)">{info}</span>}
+      <span className="line-clamp-2 pr-7 text-sm font-semibold leading-tight text-(--ink)">{name}</span>
+      <span className="flex items-end justify-between gap-1">
+        <span className="min-w-0">
+          {price && <span className="block text-sm font-semibold tabular-nums text-(--teal)">{price}</span>}
+          {info && <span className="block truncate text-[11px] text-(--muted)">{info}</span>}
         </span>
-        <Photo path={photoPath} alt={name} size={44} />
+        <Photo path={photoPath} alt={name} size={32} />
       </span>
       {count > 0 && (
-        <span className="absolute right-2 top-2 flex min-w-8 items-center justify-center rounded-full bg-(--teal) px-2 py-1 text-sm font-bold text-white">
+        <span className="absolute right-1.5 top-1.5 flex min-w-7 items-center justify-center rounded-full bg-(--teal) px-1.5 py-0.5 text-xs font-bold text-white">
           {count}
         </span>
       )}

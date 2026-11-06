@@ -56,7 +56,7 @@ export function ItemsWithUsTable({ items }: { items: HotelProfile["itemTracking"
       </thead>
       <tbody>
         {items.map((t) => (
-          <tr key={t.serviceItemId}>
+          <tr key={t.key}>
             <Td>{t.name}</Td>
             <Td align="right">{t.collected}</Td>
             <Td align="right">{t.delivered}</Td>
@@ -70,15 +70,9 @@ export function ItemsWithUsTable({ items }: { items: HotelProfile["itemTracking"
   );
 }
 
-export async function PricesTable({
-  prices,
-  servicePrices,
-}: {
-  prices: HotelProfile["prices"];
-  servicePrices: HotelProfile["servicePrices"];
-}) {
+export async function PricesTable({ prices }: { prices: HotelProfile["prices"] }) {
   const t = await getT();
-  if (prices.length === 0 && servicePrices.length === 0) return <Empty>No agreed prices yet.</Empty>;
+  if (prices.length === 0) return <Empty>No agreed prices yet.</Empty>;
   return (
     <Table>
       <thead>
@@ -98,19 +92,6 @@ export async function PricesTable({
             <Td>{describeDiscount(p.discountType, p.discountValue, t)}</Td>
             <Td align="right" className="font-semibold">
               {formatMoney(p.agreedPrice)}
-            </Td>
-            <Td>{formatDate(p.validFrom)}</Td>
-          </tr>
-        ))}
-        {servicePrices.map((p) => (
-          <tr key={p.id}>
-            <Td>
-              {p.serviceItem.name} <Badge>washing their item</Badge>
-            </Td>
-            <Td align="right">-</Td>
-            <Td>-</Td>
-            <Td align="right" className="font-semibold">
-              {formatMoney(p.price)}
             </Td>
             <Td>{formatDate(p.validFrom)}</Td>
           </tr>

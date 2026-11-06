@@ -5,7 +5,7 @@ import { logAudit } from "@/server/audit";
 import { requirePermission } from "@/server/auth/dal";
 import { getT } from "@/server/i18n";
 import { db } from "@/server/db";
-import { id, money, parseForm, type ActionState } from "@/server/forms";
+import { id, parseForm, type ActionState } from "@/server/forms";
 import { isMoneyInput, percentToBasisPoints, toCents } from "@/server/money";
 import { done } from "@/server/modules/shared";
 import { agreedPrice } from "@/server/pricing";
@@ -18,7 +18,7 @@ const dealSchema = z.object({
     .string()
     .trim()
     .optional()
-    .refine((v) => !v || isMoneyInput(v), "Enter a number like 10 or 2,5"),
+    .refine((v) => !v || isMoneyInput(v), "Enter a number like 10 or 2.5"),
 });
 
 /** Adds a product to the deal or changes its discount. The old price row is closed, never edited. */
@@ -99,55 +99,4 @@ export async function removeHotelPrice(_: ActionState, formData: FormData): Prom
   await db.hotelPrice.update({ where: { id: current.id }, data: { validTo: new Date() } });
   await logAudit({ userId: user.id, action: "price.remove", entity: "HotelPrice", entityId: current.id, before: current });
   return done("Product removed from this hotel's deal.");
-}
-
-// ---------- Service prices (hotel-owned items) ----------
-
-const servicePriceSchema = z.object({
-  hotelId: id,
-  serviceItemId: z.string().min(1, "Choose an item"),
-  price: money("Price"),
-});
-
-export async function setHotelServicePrice(_: ActionState, formData: FormData): Promise<ActionState> {
-  const user = await requirePermission("price:manage");
-  const parsed = parseForm(servicePriceSchema, formData);
-  if (!parsed.success) return parsed.state;
-  const { hotelId, serviceItemId, price } = parsed.data;
-
-  const item = await db.serviceItem.findUnique({ where: { id: serviceItemId } });
-  if (!item) return { error: "Item not found." };
-
-  await db.$transaction(async (tx) => {
-    const now = new Date();
-    const current = await tx.hotelServicePrice.findFirst({
-      where: { hotelId, serviceItemId, validTo: null },
-    });
-    if (current) {
-      await tx.hotelServicePrice.update({ where: { id: current.id }, data: { validTo: now } });
-    }
-    const created = await tx.hotelServicePrice.create({
-      data: { hotelId, serviceItemId, price, validFrom: now, createdById: user.id },
-    });
-    await logAudit(
-      { userId: user.id, action: "servicePrice.set", entity: "HotelServicePrice", entityId: created.id, before: current, after: created },
-      tx,
-    );
-  });
-  return done((await getT())("Washing price for {item} saved.", { item: item.name }));
-}
-
-const removeServiceSchema = z.object({ hotelId: id, serviceItemId: id });
-
-export async function removeHotelServicePrice(_: ActionState, formData: FormData): Promise<ActionState> {
-  const user = await requirePermission("price:manage");
-  const parsed = parseForm(removeServiceSchema, formData);
-  if (!parsed.success) return parsed.state;
-
-  const current = await db.hotelServicePrice.findFirst({ where: { ...parsed.data, validTo: null } });
-  if (!current) return { error: "This item has no price for the hotel." };
-
-  await db.hotelServicePrice.update({ where: { id: current.id }, data: { validTo: new Date() } });
-  await logAudit({ userId: user.id, action: "servicePrice.remove", entity: "HotelServicePrice", entityId: current.id, before: current });
-  return done("Washing price removed.");
 }

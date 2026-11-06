@@ -19,9 +19,10 @@ import {
 } from "@/server/forms";
 import { isMoneyInput, toCents } from "@/server/money";
 import { getDue } from "@/server/modules/ledger/core";
-import { activePrices, activeServicePrices } from "@/server/modules/prices/queries";
+import { activePrices } from "@/server/modules/prices/queries";
 import { BusinessError, revalidateAll, SERIALIZABLE, toActionError } from "@/server/modules/shared";
 import { assertEnough } from "@/server/modules/stock/core";
+import { hotelItemFields, resolveHotelItems } from "@/server/modules/tracking/items";
 import { calculateSend } from "@/server/pricing";
 import { findSend } from "./queries";
 import { receiptRecipient, sendReceiptEmail } from "./receipt";
@@ -35,10 +36,19 @@ const sendSchema = z.object({
       extraPerPiece: z
         .string()
         .trim()
-        .refine((v) => !v || isMoneyInput(v), "Extra discount must be a number like 2 or 1,50"),
+        .refine((v) => !v || isMoneyInput(v), "Extra discount must be a number like 2 or 1.50"),
     }),
   ),
-  items: jsonArray(z.object({ serviceItemId: z.string().min(1), quantity })),
+  items: jsonArray(
+    z.object({
+      ...hotelItemFields,
+      quantity,
+      price: z
+        .string()
+        .trim()
+        .refine((v) => isMoneyInput(v), "Type the washing price for each of their items"),
+    }),
+  ),
   wholeDiscount: optionalMoney,
   discountReason: optionalText,
   note: optionalText,
@@ -84,12 +94,8 @@ export async function createSend(_: ActionState, formData: FormData): Promise<Ac
         return { line, price };
       });
 
-      const itemPrices = new Map((await activeServicePrices(tx, hotel.id)).map((p) => [p.serviceItemId, p]));
-      const pricedItems = items.map((item) => {
-        const price = itemPrices.get(item.serviceItemId);
-        if (!price) throw new BusinessError("An item has no washing price for this hotel. Reload the page.");
-        return { item, price: price.price };
-      });
+      // Washing price for the hotel's own pieces is typed at the time of sending.
+      const pricedItems = (await resolveHotelItems(tx, items)).map((item) => ({ item, price: toCents(item.price) }));
 
       const totals = calculateSend(
         pricedLines.map(({ line, price }) => ({
@@ -145,7 +151,8 @@ export async function createSend(_: ActionState, formData: FormData): Promise<Ac
         await tx.hotelItemMovement.createMany({
           data: pricedItems.map(({ item, price }, i) => ({
             hotelId: hotel.id,
-            serviceItemId: item.serviceItemId,
+            productId: item.productId,
+            itemName: item.itemName,
             type: "DELIVERED" as const,
             quantity: item.quantity,
             unitPriceSnapshot: price,

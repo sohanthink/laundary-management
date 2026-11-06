@@ -22,7 +22,7 @@ export function sendReceiptEmail(send: SendWithDetails, dueAfter: number) {
     formatMoney(l.lineTotal),
   ]);
   const itemRows = send.itemLines.map((l) => [
-    escapeHtml(l.serviceItem.name),
+    escapeHtml(l.itemName),
     String(l.quantity),
     formatMoney(l.unitPriceSnapshot),
     formatMoney(l.lineTotal),

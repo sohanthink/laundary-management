@@ -1,83 +1,16 @@
-import {
-  BarChart3,
-  Bed,
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  FileText,
-  Gauge,
-  History,
-  Hourglass,
-  KeyRound,
-  ListChecks,
-  PackageOpen,
-  Receipt,
-  Search,
-  Shirt,
-  Tags,
-  Truck,
-  Users,
-  Wallet,
-} from "lucide-react";
 import Link from "next/link";
-import { Tile, TileGrid, type TileDef } from "@/components/tiles";
+import { SECTION_ORDER, SECTIONS, type SectionKey } from "@/components/admin-sections";
+import { Tile, TileGrid } from "@/components/tiles";
 import { requirePermission } from "@/server/auth/dal";
 import { getT } from "@/server/i18n";
 import { formatMoney } from "@/server/money";
 import { getHomeStats } from "@/server/modules/dashboard/queries";
 
-const SECTIONS: Record<string, { label: string; tiles: TileDef[] }> = {
-  daily: {
-    label: "Daily",
-    tiles: [
-      { href: "/admin/send", label: "Send", icon: Truck, tone: "primary", hint: "Products to hotel" },
-      { href: "/admin/collect", label: "Collect", icon: PackageOpen, tone: "primary", hint: "Back from hotel" },
-      { href: "/admin/payments", label: "Payment", icon: Wallet, tone: "money", hint: "Money received" },
-      { href: "/admin/expenses", label: "Expense", icon: Receipt, tone: "dark", hint: "Money spent" },
-      { href: "/admin/today", label: "Today", icon: CalendarDays, hint: "Daily summary" },
-      { href: "/admin/tracking", label: "Tracking", icon: ClipboardList, hint: "Sent and returned" },
-      { href: "/admin/send/history", label: "Send history", icon: History },
-    ],
-  },
-  office: {
-    label: "Office",
-    tiles: [
-      { href: "/admin/customers", label: "Customers", icon: Users, hint: "Owners and hotels" },
-      { href: "/admin/invoices", label: "Invoices", icon: FileText, tone: "money" },
-      { href: "/admin/payments", label: "Payments", icon: Wallet },
-      { href: "/admin/expenses", label: "Expenses", icon: Receipt },
-      { href: "/admin/overview", label: "Overview", icon: Gauge },
-      { href: "/admin/audit/yearly", label: "Yearly audit", icon: BarChart3 },
-      { href: "/admin/audit", label: "Client audit", icon: Search },
-      { href: "/admin/audit/long-held", label: "Long-held items", icon: Hourglass },
-    ],
-  },
-  setup: {
-    label: "Setup",
-    tiles: [
-      { href: "/admin/products", label: "Products", icon: Shirt, hint: "Base prices" },
-      { href: "/admin/products/categories", label: "Categories", icon: Tags },
-      { href: "/admin/products/hotel-items", label: "Hotel's own items", icon: Bed },
-      { href: "/admin/customers", label: "Hotel prices", icon: Users, hint: "Open a hotel, then Prices" },
-      { href: "/admin/settings", label: "Company details", icon: Building2, hint: "Shown on invoices" },
-    ],
-  },
-  system: {
-    label: "System",
-    tiles: [
-      { href: "/change-password", label: "Change password", icon: KeyRound },
-      { href: "/admin/audit/log", label: "Activity log", icon: ListChecks },
-    ],
-  },
-};
-
-const ORDER = ["daily", "office", "setup", "system"] as const;
-
 export default async function AdminHomePage({ searchParams }: PageProps<"/admin">) {
   await requirePermission("admin:access");
   const t = await getT();
   const { s } = await searchParams;
-  const active = typeof s === "string" && s in SECTIONS ? s : "daily";
+  const active: SectionKey = typeof s === "string" && s in SECTIONS ? (s as SectionKey) : "daily";
   const stats = await getHomeStats();
 
   return (
@@ -97,7 +30,7 @@ export default async function AdminHomePage({ searchParams }: PageProps<"/admin"
       </div>
 
       <nav aria-label={t("Sections")} className="flex gap-3 overflow-x-auto lg:w-44 lg:flex-col">
-        {ORDER.map((key) => (
+        {SECTION_ORDER.map((key) => (
           <Link
             key={key}
             href={key === "daily" ? "/admin" : `/admin?s=${key}`}

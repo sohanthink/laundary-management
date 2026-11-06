@@ -11,7 +11,7 @@ import { Sheet } from "@/components/pos/sheet";
 import { FormMessage } from "@/components/ui/action-form";
 import { Button, buttonClass } from "@/components/ui/button";
 import { inputClass } from "@/components/ui/field";
-import { formatMoney, isMoneyInput, toCents } from "@/server/money";
+import { formatMoney, isMoneyInput, toCents, toMoneyInput } from "@/server/money";
 import { createSend } from "@/server/modules/send/actions";
 import { calculateSend } from "@/server/pricing";
 
@@ -24,10 +24,14 @@ type Row = {
   agreedPrice: number;
   atHotel: number;
 };
-type ItemRow = { serviceItemId: string; name: string; price: number; withUs: number };
+/** One kind of the hotel's own pieces (a product type or an "Other" name). */
+type ItemRow = { key: string; productId: string | null; name: string; withUs: number; lastPrice: number | null };
 
 type Selected = { kind: "product" | "item"; id: string } | null;
-type PadMode = "qty" | "extra";
+type PadMode = "qty" | "extra" | "price";
+
+const itemKeyOf = (productId: string | null, name: string) =>
+  productId ? `p:${productId}` : `n:${name.trim().toLowerCase()}`;
 
 const ITEMS_TAB = "__items__";
 const METHODS = ["CASH", "BANK", "POS", "EMPLOYEE"] as const;
@@ -46,11 +50,13 @@ export function SendPos({
   hotel,
   rows,
   itemRows,
+  products,
   due,
 }: {
   hotel: { id: string; name: string };
   rows: Row[];
   itemRows: ItemRow[];
+  products: { id: string; name: string }[];
   due: number;
 }) {
   const t = useT();
@@ -61,11 +67,22 @@ export function SendPos({
   const [qty, setQty] = useState<Record<string, number>>({});
   const [extra, setExtra] = useState<Record<string, string>>({});
   const [itemQty, setItemQty] = useState<Record<string, number>>({});
+  const [itemPrice, setItemPrice] = useState<Record<string, string>>({});
+  const [extraItems, setExtraItems] = useState<ItemRow[]>([]);
+  const [otherProduct, setOtherProduct] = useState("");
+  const [otherName, setOtherName] = useState("");
+  const [warning, setWarning] = useState("");
   const [selected, setSelected] = useState<Selected>(null);
   const [padMode, setPadMode] = useState<PadMode>("qty");
   const [buffer, setBuffer] = useState("");
 
-  const [sheet, setSheet] = useState<"discount" | "payment" | "note" | null>(null);
+  const [sheet, setSheet] = useState<"discount" | "payment" | "note" | "other" | null>(null);
+
+  const allItems = useMemo(
+    () => [...itemRows, ...extraItems.filter((e) => !itemRows.some((r) => r.key === e.key))],
+    [itemRows, extraItems],
+  );
+  const priceText = (r: ItemRow) => itemPrice[r.key] ?? (r.lastPrice !== null ? toMoneyInput(r.lastPrice) : "");
   const [whole, setWhole] = useState("");
   const [reason, setReason] = useState("");
   const [payment, setPayment] = useState("");
@@ -82,23 +99,27 @@ export function SendPos({
           quantity: qty[r.productId] ?? 0,
         })),
         cents(whole),
-        itemRows.map((r) => ({ price: r.price, quantity: itemQty[r.serviceItemId] ?? 0 })),
+        allItems.map((r) => ({
+          price: cents(itemPrice[r.key] ?? (r.lastPrice !== null ? toMoneyInput(r.lastPrice) : "")),
+          quantity: itemQty[r.key] ?? 0,
+        })),
       ),
-    [rows, itemRows, qty, extra, itemQty, whole],
+    [rows, allItems, qty, extra, itemQty, itemPrice, whole],
   );
 
   const productLines = rows.map((r, i) => ({ row: r, line: totals.lines[i] })).filter((x) => x.line.quantity > 0);
-  const itemLines = itemRows
+  const itemLines = allItems
     .map((r, i) => ({ row: r, line: totals.itemLines[i] }))
     .filter((x) => x.line.quantity > 0);
   const pieces = productLines.reduce((s, x) => s + x.line.quantity, 0) + itemLines.reduce((s, x) => s + x.line.quantity, 0);
   const hasExtra = totals.extraDiscountTotal > 0;
   const paid = cents(payment);
 
-  function select(next: Selected) {
+  function select(next: Selected, mode: PadMode = "qty") {
     setSelected(next);
     setBuffer("");
-    setPadMode("qty");
+    setPadMode(mode);
+    setWarning("");
   }
 
   function setCount(target: Selected, value: number) {
@@ -119,14 +140,40 @@ export function SendPos({
     select(target);
   }
 
-  function tapItem(id: string) {
-    const target = { kind: "item" as const, id };
+  function tapItem(row: ItemRow) {
+    const target = { kind: "item" as const, id: row.key };
     setCount(target, countOf(target) + 1);
-    select(target);
+    // No price yet: go straight to typing the washing price.
+    select(target, isMoneyInput(priceText(row) || "x") ? "qty" : "price");
+  }
+
+  function addOther() {
+    const product = products.find((p) => p.id === otherProduct);
+    const name = product?.name ?? otherName.trim();
+    if (!name) return;
+    const row: ItemRow = {
+      key: itemKeyOf(product?.id ?? null, name),
+      productId: product?.id ?? null,
+      name,
+      withUs: 0,
+      lastPrice: null,
+    };
+    setExtraItems((items) => (items.some((i) => i.key === row.key) ? items : [...items, row]));
+    setOtherProduct("");
+    setOtherName("");
+    setSheet(null);
+    setTab(ITEMS_TAB);
+    tapItem(allItems.find((i) => i.key === row.key) ?? row);
   }
 
   function onKey(key: string) {
     if (!selected) return;
+    if (padMode === "price" && selected.kind === "item") {
+      const next = applyKey(buffer, key, true);
+      setBuffer(next);
+      setItemPrice((p) => ({ ...p, [selected.id]: next }));
+      return;
+    }
     if (padMode === "extra" && selected.kind === "product") {
       const next = applyKey(buffer, key, true);
       setBuffer(next);
@@ -150,6 +197,7 @@ export function SendPos({
     setQty({});
     setExtra({});
     setItemQty({});
+    setExtraItems([]);
     setWhole("");
     setReason("");
     setPayment("");
@@ -162,13 +210,30 @@ export function SendPos({
       setSheet("discount");
       return;
     }
+    const noPrice = itemLines.find(({ row }) => !isMoneyInput(priceText(row) || "x"));
+    if (noPrice) {
+      setTab(ITEMS_TAB);
+      select({ kind: "item", id: noPrice.row.key }, "price");
+      setWarning(t("Type the washing price for {item}", { item: noPrice.row.name }));
+      return;
+    }
     const formData = new FormData();
     formData.set("hotelId", hotel.id);
     formData.set(
       "lines",
       JSON.stringify(rows.map((r) => ({ productId: r.productId, quantity: qty[r.productId] ?? 0, extraPerPiece: extra[r.productId] ?? "" }))),
     );
-    formData.set("items", JSON.stringify(itemRows.map((r) => ({ serviceItemId: r.serviceItemId, quantity: itemQty[r.serviceItemId] ?? 0 }))));
+    formData.set(
+      "items",
+      JSON.stringify(
+        itemLines.map(({ row, line }) => ({
+          productId: row.productId,
+          name: row.name,
+          quantity: line.quantity,
+          price: priceText(row),
+        })),
+      ),
+    );
     formData.set("wholeDiscount", whole);
     formData.set("discountReason", reason);
     formData.set("paymentAmount", payment);
@@ -180,12 +245,12 @@ export function SendPos({
   const selectedName =
     selected?.kind === "product"
       ? rows.find((r) => r.productId === selected.id)?.name
-      : itemRows.find((r) => r.serviceItemId === selected?.id)?.name;
+      : allItems.find((r) => r.key === selected?.id)?.name;
 
   return (
     <div className="flex flex-col gap-4 pb-28">
       <ModeToggle mode="send" hotelId={hotel.id} hotelName={hotel.name} dirty={pieces > 0} />
-      <div className="grid gap-4 lg:grid-cols-[minmax(320px,400px)_1fr]">
+      <div className="grid gap-4 lg:grid-cols-[minmax(260px,320px)_1fr_250px]">
         {/* Running list */}
         <section className="order-2 flex flex-col rounded-3xl border border-(--line) bg-white lg:order-1" aria-label={t("Send list")}>
           <div className="flex items-center justify-between border-b border-(--line) px-4 py-3">
@@ -228,18 +293,20 @@ export function SendPos({
               );
             })}
             {itemLines.map(({ row, line }) => {
-              const isSel = selected?.kind === "item" && selected.id === row.serviceItemId;
+              const isSel = selected?.kind === "item" && selected.id === row.key;
+              const hasPrice = isMoneyInput(priceText(row) || "x");
               return (
-                <li key={row.serviceItemId}>
+                <li key={row.key}>
                   <button
                     type="button"
-                    onClick={() => select({ kind: "item", id: row.serviceItemId })}
+                    onClick={() => select({ kind: "item", id: row.key }, hasPrice ? "qty" : "price")}
                     className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left ${isSel ? "bg-(--teal-soft)" : "hover:bg-(--paper)"}`}
                   >
                     <span className="min-w-0">
                       <span className="block truncate font-medium">{row.name}</span>
                       <span className="block text-sm text-(--muted) tabular-nums">
-                        {t("Their item")} · {line.quantity} × {formatMoney(row.price)}
+                        {t("Their item")} · {line.quantity} ×{" "}
+                        {hasPrice ? formatMoney(line.price) : <span className="font-semibold text-red-600">{t("price?")}</span>}
                       </span>
                     </span>
                     <span className="font-semibold tabular-nums">{formatMoney(line.lineTotal)}</span>
@@ -260,33 +327,42 @@ export function SendPos({
         </section>
 
         {/* Tiles + keypad */}
-        <section className="order-1 space-y-4 lg:order-2">
+        <section className="order-1 min-w-0 space-y-3 lg:order-2">
           <div className="flex flex-wrap gap-2" role="tablist">
             {categories.map((c) => (
               <TabButton key={c} active={tab === c} onClick={() => setTab(c)}>
                 {c}
               </TabButton>
             ))}
-            {itemRows.length > 0 && (
-              <TabButton active={tab === ITEMS_TAB} onClick={() => setTab(ITEMS_TAB)}>
-                {t("Their items (washed)")}
-              </TabButton>
-            )}
+            <TabButton active={tab === ITEMS_TAB} onClick={() => setTab(ITEMS_TAB)}>
+              {t("Their items (washed)")}
+            </TabButton>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(124px,1fr))] gap-2">
             {tab === ITEMS_TAB
-              ? itemRows.map((r) => (
-                  <ProductTile
-                    key={r.serviceItemId}
-                    name={r.name}
-                    price={formatMoney(r.price)}
-                    info={t("With us: {count}", { count: r.withUs })}
-                    count={itemQty[r.serviceItemId] ?? 0}
-                    selected={selected?.kind === "item" && selected.id === r.serviceItemId}
-                    onTap={() => tapItem(r.serviceItemId)}
-                  />
-                ))
+              ? [
+                  ...allItems.map((r) => (
+                    <ProductTile
+                      key={r.key}
+                      name={r.name}
+                      price={isMoneyInput(priceText(r) || "x") ? formatMoney(cents(priceText(r))) : undefined}
+                      info={t("With us: {count}", { count: r.withUs })}
+                      count={itemQty[r.key] ?? 0}
+                      selected={selected?.kind === "item" && selected.id === r.key}
+                      onTap={() => tapItem(r)}
+                    />
+                  )),
+                  <button
+                    key="__other__"
+                    type="button"
+                    onClick={() => setSheet("other")}
+                    className="flex min-h-24 items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-(--line) bg-white p-2.5 text-sm font-semibold text-(--teal) hover:border-(--teal)"
+                  >
+                    <Plus className="size-5" aria-hidden />
+                    {t("Other item")}
+                  </button>,
+                ]
               : rows
                   .filter((r) => r.category === tab)
                   .map((r) => (
@@ -303,9 +379,12 @@ export function SendPos({
                   ))}
           </div>
 
-          <div className="grid gap-4 rounded-3xl border border-(--line) bg-white p-4 md:grid-cols-[1fr_260px]">
+          </section>
+
+        {/* Number pad column */}
+        <section className="order-2 space-y-3 self-start rounded-3xl border border-(--line) bg-white p-3 lg:sticky lg:top-24 lg:order-3">
             <div className="space-y-3">
-              <p className="text-sm text-(--muted)">
+              <p className="min-h-10 text-sm leading-snug text-(--muted)">
                 {selected ? (
                   <>
                     {t("Selected")}: <span className="font-semibold text-(--ink)">{selectedName}</span>
@@ -314,32 +393,37 @@ export function SendPos({
                   t("Tap a line or tile, then type the quantity.")
                 )}
               </p>
-              {selected?.kind === "product" && (
-                <div className="flex gap-2">
+              {selected && (
+                <div className="grid grid-cols-2 gap-2">
                   <TabButton active={padMode === "qty"} onClick={() => { setPadMode("qty"); setBuffer(""); }}>
                     {t("Quantity")}
                   </TabButton>
-                  <TabButton active={padMode === "extra"} onClick={() => { setPadMode("extra"); setBuffer(""); }}>
-                    {t("Extra disc. / pc")}
-                  </TabButton>
+                  {selected.kind === "product" ? (
+                    <TabButton active={padMode === "extra"} onClick={() => { setPadMode("extra"); setBuffer(""); }}>
+                      {t("Extra disc. / pc")}
+                    </TabButton>
+                  ) : (
+                    <TabButton active={padMode === "price"} onClick={() => { setPadMode("price"); setBuffer(""); }}>
+                      {t("Washing price / pc")}
+                    </TabButton>
+                  )}
                 </div>
               )}
-              <div className="flex flex-wrap gap-2">
-                <Button size="lg" variant="secondary" disabled={!selected} onClick={() => setCount(selected, countOf(selected) - 1)} aria-label={t("One less")}>
+              {warning && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{warning}</p>}
+              <div className="grid grid-cols-3 gap-2">
+                <Button size="lg" variant="secondary" className="px-0" disabled={!selected} onClick={() => setCount(selected, countOf(selected) - 1)} aria-label={t("One less")}>
                   <Minus className="size-5" aria-hidden />
                 </Button>
-                <Button size="lg" variant="secondary" disabled={!selected} onClick={() => setCount(selected, countOf(selected) + 1)} aria-label={t("One more")}>
+                <Button size="lg" variant="secondary" className="px-0" disabled={!selected} onClick={() => setCount(selected, countOf(selected) + 1)} aria-label={t("One more")}>
                   <Plus className="size-5" aria-hidden />
                 </Button>
-                <Button size="lg" variant="secondary" disabled={!selected} onClick={removeSelected}>
+                <Button size="lg" variant="secondary" className="px-0" disabled={!selected} onClick={removeSelected} aria-label={t("Remove")}>
                   <Trash2 className="size-5" aria-hidden />
-                  {t("Remove")}
                 </Button>
               </div>
               <FormMessage state={state} />
             </div>
-            <Keypad onKey={onKey} allowDecimal={padMode === "extra"} disabled={!selected} />
-          </div>
+            <Keypad onKey={onKey} allowDecimal={padMode !== "qty"} disabled={!selected} />
         </section>
       </div>
 
@@ -409,8 +493,33 @@ export function SendPos({
             </button>
           ))}
         </div>
-        <Button variant="secondary" onClick={() => setPayment((totals.total / 100).toFixed(2).replace(".", ","))}>
+        <Button variant="secondary" onClick={() => setPayment((totals.total / 100).toFixed(2))}>
           {t("Paid in full")} ({formatMoney(totals.total)})
+        </Button>
+      </Sheet>
+
+      <Sheet open={sheet === "other"} title="Other item" onClose={() => setSheet(null)}>
+        <p className="text-sm text-(--muted)">{t("The hotel's own piece you are returning washed. Pick one of your product types, or type a name.")}</p>
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-medium">{t("Product type")}</span>
+          <select className={inputClass} value={otherProduct} onChange={(e) => setOtherProduct(e.target.value)}>
+            <option value="">{t("Not in the list (type a name)")}</option>
+            {products.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        {!otherProduct && (
+          <label className="block">
+            <span className="mb-1.5 block text-sm font-medium">{t("Name")}</span>
+            <input className={inputClass} value={otherName} onChange={(e) => setOtherName(e.target.value)} placeholder={t("e.g. Curtain")} />
+          </label>
+        )}
+        <Button size="lg" onClick={addOther} disabled={!otherProduct && !otherName.trim()}>
+          <Plus className="size-5" aria-hidden />
+          {t("Add")}
         </Button>
       </Sheet>
 
@@ -428,7 +537,7 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
       role="tab"
       aria-selected={active}
       onClick={onClick}
-      className={`h-12 rounded-xl border-2 px-4 text-sm font-semibold transition ${
+      className={`min-h-12 rounded-xl border-2 px-3 text-sm font-semibold leading-tight transition ${
         active ? "border-(--ink) bg-(--ink) text-white" : "border-(--line) bg-white text-(--ink) hover:border-(--teal)"
       }`}
     >

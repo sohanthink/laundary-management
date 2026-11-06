@@ -3,26 +3,26 @@ import type { Prisma } from "@prisma/client";
 import { requirePermission } from "@/server/auth/dal";
 import { db } from "@/server/db";
 import { getDue } from "@/server/modules/ledger/core";
-import { activePrices, activeServicePrices } from "@/server/modules/prices/queries";
-import { getItemTracking, getProductTracking } from "@/server/modules/tracking/core";
+import { activePrices } from "@/server/modules/prices/queries";
+import { getItemTracking, getProductTracking, lastWashingPrices } from "@/server/modules/tracking/core";
 
 export async function getSendScreen(hotelId: string | undefined) {
   await requirePermission("send:create");
-  const empty = { hotel: null, rows: [], itemRows: [], due: 0 };
+  const empty = { hotel: null, rows: [], itemRows: [], products: [], due: 0 };
   if (!hotelId) return empty;
 
   const hotel = await db.hotel.findUnique({ where: { id: hotelId } });
   if (!hotel) return empty;
 
-  const [prices, servicePrices, due, productTracks, itemTracks] = await Promise.all([
+  const [prices, due, productTracks, itemTracks, washPrices, products] = await Promise.all([
     activePrices(db, hotelId),
-    activeServicePrices(db, hotelId),
     getDue(db, hotelId),
     getProductTracking(db, hotelId),
     getItemTracking(db, hotelId),
+    lastWashingPrices(db, hotelId),
+    db.product.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
   const atHotel = new Map(productTracks.map((t) => [t.productId, t.atHotel]));
-  const withUs = new Map(itemTracks.map((t) => [t.serviceItemId, t.withUs]));
 
   const rows = prices
     .filter((p) => p.product.isActive)
@@ -36,22 +36,24 @@ export async function getSendScreen(hotelId: string | undefined) {
       atHotel: atHotel.get(p.productId) ?? 0,
     }));
 
-  const itemRows = servicePrices
-    .filter((p) => p.serviceItem.isActive)
-    .map((p) => ({
-      serviceItemId: p.serviceItemId,
-      name: p.serviceItem.name,
-      price: p.price,
-      withUs: withUs.get(p.serviceItemId) ?? 0,
+  // The hotel's own pieces we are holding, ready to deliver back washed.
+  const itemRows = itemTracks
+    .filter((t) => t.withUs > 0)
+    .map((t) => ({
+      key: t.key,
+      productId: t.productId,
+      name: t.name,
+      withUs: t.withUs,
+      lastPrice: washPrices.get(t.key) ?? null,
     }));
 
-  return { hotel, rows, itemRows, due };
+  return { hotel, rows, itemRows, products, due };
 }
 
 const sendInclude = {
   hotel: { include: { customer: { include: { user: true } } } },
   lines: { include: { product: true } },
-  itemLines: { include: { serviceItem: true } },
+  itemLines: true,
   ledgerEntries: true,
 } satisfies Prisma.SendInclude;
 

@@ -100,7 +100,7 @@ export default async function TrackingPage({ searchParams }: PageProps<"/admin/t
               </thead>
               <tbody>
                 {items.map((i) => (
-                  <tr key={`${i.hotelId}-${i.serviceItemId}`}>
+                  <tr key={`${i.hotelId}-${i.key}`}>
                     <Td>
                       <Link href={`/admin/hotels/${i.hotelId}`} className="font-medium hover:text-(--teal)">
                         {i.hotelName}
@@ -153,7 +153,7 @@ export default async function TrackingPage({ searchParams }: PageProps<"/admin/t
                       <Badge tone={m.type === "COLLECTED" ? "default" : "info"}>
                         {m.type === "COLLECTED" ? "Collected" : "Delivered"}
                       </Badge>{" "}
-                      {m.quantity} {m.serviceItem.name} · {m.hotel.name}
+                      {m.quantity} {m.itemName} · {m.hotel.name}
                     </span>
                     <span className="whitespace-nowrap text-(--muted)">{formatDateTime(m.createdAt)}</span>
                   </li>

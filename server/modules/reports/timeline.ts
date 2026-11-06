@@ -36,7 +36,7 @@ export async function getTimeline(hotelIds: string[], range: StatementRange, kin
           include: {
             hotel: true,
             lines: { include: { product: true } },
-            itemLines: { include: { serviceItem: true } },
+            itemLines: true,
           },
         })
       : [],
@@ -49,7 +49,7 @@ export async function getTimeline(hotelIds: string[], range: StatementRange, kin
     want("COLLECT")
       ? db.hotelItemMovement.findMany({
           where: { ...hotelFilter, ...created, type: "COLLECTED" },
-          include: { hotel: true, serviceItem: true },
+          include: { hotel: true },
         })
       : [],
     want("PAYMENT") || want("ADJUSTMENT") || want("COLLECT")
@@ -71,7 +71,7 @@ export async function getTimeline(hotelIds: string[], range: StatementRange, kin
       title: "Sent",
       details: [
         ...s.lines.map((l) => `${l.quantity} ${l.product.name}`),
-        ...s.itemLines.map((l) => `${l.quantity} ${l.serviceItem.name} (their item, washed)`),
+        ...s.itemLines.map((l) => `${l.quantity} ${l.itemName} (their item, washed)`),
       ].join(", "),
       amount: s.total,
       voided: s.status === "VOIDED",
@@ -104,7 +104,7 @@ export async function getTimeline(hotelIds: string[], range: StatementRange, kin
     event.parts.push(`${m.quantity} ${m.product.name} ${label}`);
   }
   for (const m of itemMovements) {
-    collectFor(m.batchId, m.createdAt, m.hotel.name).parts.push(`${m.quantity} ${m.serviceItem.name} picked up to wash`);
+    collectFor(m.batchId, m.createdAt, m.hotel.name).parts.push(`${m.quantity} ${m.itemName} picked up to wash`);
   }
 
   for (const e of ledger) {

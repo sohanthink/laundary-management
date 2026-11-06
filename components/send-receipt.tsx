@@ -79,7 +79,7 @@ export async function SendReceipt({ send }: { send: SendWithDetails }) {
             <tbody>
               {send.itemLines.map((l) => (
                 <tr key={l.id}>
-                  <Td>{l.serviceItem.name}</Td>
+                  <Td>{l.itemName}</Td>
                   <Td align="right">{l.quantity}</Td>
                   <Td align="right">{formatMoney(l.unitPriceSnapshot)}</Td>
                   <Td align="right" className="font-semibold">

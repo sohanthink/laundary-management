@@ -26,7 +26,6 @@ export default async function ProductsPage() {
         actions={
           <>
             <LinkButton href="/admin/products/categories">Categories</LinkButton>
-            <LinkButton href="/admin/products/hotel-items">Hotel&apos;s own items</LinkButton>
             {categories.length > 0 && (
               <Modal trigger="New product" title="New product">
                 <ActionForm action={createProduct} submitLabel="Create product">

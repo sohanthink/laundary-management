@@ -16,10 +16,12 @@ export function HotelChooser({
   title,
 }: {
   hotels: Hotel[];
-  mode: "send" | "collect";
+  /** "profile" opens the hotel's profile instead of a Send / Collect screen. */
+  mode: "send" | "collect" | "profile";
   title: string;
 }) {
-  const basePath = mode === "send" ? "/admin/send" : "/admin/collect";
+  const href = (id: string) =>
+    mode === "profile" ? `/admin/hotels/${id}` : `${mode === "send" ? "/admin/send" : "/admin/collect"}?hotel=${id}`;
   const t = useT();
   const [query, setQuery] = useState("");
 
@@ -33,7 +35,7 @@ export function HotelChooser({
 
   return (
     <div className="space-y-4">
-      <ModeToggle mode={mode} />
+      {mode !== "profile" && <ModeToggle mode={mode} />}
       <h1 className="font-display text-4xl tracking-tight text-(--ink)">{t(title)}</h1>
       <label className="relative block">
         <span className="sr-only">{t("Search hotel")}</span>
@@ -55,7 +57,7 @@ export function HotelChooser({
           {filtered.map((h) => (
             <li key={h.id}>
               <Link
-                href={`${basePath}?hotel=${h.id}`}
+                href={href(h.id)}
                 className="flex min-h-24 items-center gap-4 rounded-2xl border-2 border-(--line) bg-white p-4 transition hover:border-(--teal) focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-(--teal-soft) active:scale-[0.99]"
               >
                 <Building2 className="size-9 shrink-0 text-(--teal)" strokeWidth={1.6} aria-hidden />

@@ -16,11 +16,6 @@ export async function getProduct(productId: string) {
   return db.product.findUnique({ where: { id: productId }, include: { category: true } });
 }
 
-export async function getServiceItems() {
-  await requirePermission("catalog:manage");
-  return db.serviceItem.findMany({ orderBy: { name: "asc" } });
-}
-
 /** Products with how many pieces are at hotels right now. */
 export async function getProductsWithTracking() {
   await requirePermission("catalog:manage");

@@ -7,7 +7,7 @@ Linen rental management for hotels: track what you send, what comes back, and wh
 
 Built with Next.js 16, PostgreSQL (Neon) + Prisma 6, custom auth (bcrypt + database sessions), Gmail via Nodemailer, and local photo storage.
 
-- Money in euro (`1.234,56 €`); inputs accept `18,50` or `18.50`. Dates and days follow Italian time (Europe/Rome).
+- Money in euro (`1,234.56 €`); inputs accept `18.50` or `18,50`. Dates and days follow Italian time (Europe/Rome).
 - English / Italian switch in the top bar (and on the sign-in page). Translations live in `i18n/it.ts`: the key is the English text, so anything missing simply shows in English.
 - Invoices: pick a hotel and a period; sends and rejected-piece credits in that period become one numbered invoice (1/2026, 2/2026, ...). No VAT yet. Print or "Save as PDF" from the invoice page. Company details for the invoice header are under Setup > Company details.
 
@@ -30,7 +30,8 @@ Email is optional. Without `GMAIL_USER` / `GMAIL_APP_PASSWORD`, emails are print
 
 1. Products > Categories: create categories, then products with base price and the pieces you own.
 2. Customers: add the hotel owner (a login is created), then add their hotels.
-3. Hotel > Prices: pick the products in the deal and set discounts. Add washing prices for the hotel's own items if needed (item types are under Products > Hotel's own items).
+3. Hotel > Prices: pick the products in the deal and set discounts.
+   The hotel's own pieces need no setup: on Collect, open "Their items to wash" and tap a product type (or "Other item" with a name); on Send, open "Their items (washed)" and type the washing price (the last price is remembered per hotel).
 4. Send: choose the hotel, enter quantities. Each send adds a charge to the hotel's due.
 5. Collect: used pieces back, rejected pieces (credited), and the hotel's own items picked up. Then Tracking, Payments, Expenses, Reports.
 

@@ -16,7 +16,8 @@ import { formatMoney, isMoneyInput, toCents, toMoneyInput } from "@/server/money
 import { collectFromHotel } from "@/server/modules/collect/actions";
 
 type Row = { productId: string; name: string; category: string; photoPath: string | null; atHotel: number; creditPrice: number };
-type ItemRow = { serviceItemId: string; name: string; withUs: number };
+/** One kind of the hotel's own pieces: one of our product types, or an "Other" name. */
+type ItemRow = { key: string; productId: string | null; name: string; photoPath: string | null; withUs: number };
 
 type Mode = "returned" | "rejected" | "items";
 type Selected = { kind: Mode; id: string } | null;
@@ -37,6 +38,9 @@ export function CollectPos({
   const [rejected, setRejected] = useState<Record<string, number>>({});
   const [creditEdits, setCreditEdits] = useState<Record<string, string>>({});
   const [itemQty, setItemQty] = useState<Record<string, number>>({});
+  const [extraItems, setExtraItems] = useState<ItemRow[]>([]);
+  const [otherOpen, setOtherOpen] = useState(false);
+  const [otherName, setOtherName] = useState("");
   const [mode, setMode] = useState<Mode>(rows.length > 0 ? "returned" : "items");
   const [selected, setSelected] = useState<Selected>(null);
   const [padMode, setPadMode] = useState<"qty" | "credit">("qty");
@@ -49,6 +53,7 @@ export function CollectPos({
     setRejected({});
     setCreditEdits({});
     setItemQty({});
+    setExtraItems([]);
     setNote("");
     setSelected(null);
     setBuffer("");
@@ -69,12 +74,13 @@ export function CollectPos({
 
   const returnedLines = rows.filter((r) => (returned[r.productId] ?? 0) > 0);
   const rejectedLines = rows.filter((r) => (rejected[r.productId] ?? 0) > 0);
-  const itemLines = itemRows.filter((r) => (itemQty[r.serviceItemId] ?? 0) > 0);
+  const allItems = [...itemRows, ...extraItems.filter((e) => !itemRows.some((r) => r.key === e.key))];
+  const itemLines = allItems.filter((r) => (itemQty[r.key] ?? 0) > 0);
   const totalCredit = rejectedLines.reduce((s, r) => s + creditCents(r) * (rejected[r.productId] ?? 0), 0);
   const backPieces =
     returnedLines.reduce((s, r) => s + (returned[r.productId] ?? 0), 0) +
     rejectedLines.reduce((s, r) => s + (rejected[r.productId] ?? 0), 0);
-  const itemPieces = itemLines.reduce((s, r) => s + (itemQty[r.serviceItemId] ?? 0), 0);
+  const itemPieces = itemLines.reduce((s, r) => s + (itemQty[r.key] ?? 0), 0);
 
   function countOf(target: Selected) {
     if (!target) return 0;
@@ -151,7 +157,10 @@ export function CollectPos({
         })),
       ),
     );
-    formData.set("items", JSON.stringify(itemRows.map((r) => ({ serviceItemId: r.serviceItemId, quantity: itemQty[r.serviceItemId] ?? 0 }))));
+    formData.set(
+      "items",
+      JSON.stringify(itemLines.map((r) => ({ productId: r.productId, name: r.name, quantity: itemQty[r.key] ?? 0 }))),
+    );
     formData.set("note", note);
     startTransition(() => action(formData));
   }
@@ -159,18 +168,18 @@ export function CollectPos({
   const modeTabs: { key: Mode; label: string; show: boolean }[] = [
     { key: "returned", label: "Used, returned", show: rows.length > 0 },
     { key: "rejected", label: "Rejected (not perfect)", show: rows.length > 0 },
-    { key: "items", label: "Their items to wash", show: itemRows.length > 0 },
+    { key: "items", label: "Their items to wash", show: true },
   ];
 
   const selectedName =
     selected?.kind === "items"
-      ? itemRows.find((r) => r.serviceItemId === selected.id)?.name
+      ? allItems.find((r) => r.key === selected.id)?.name
       : rows.find((r) => r.productId === selected?.id)?.name;
 
   return (
     <div className="flex flex-col gap-4 pb-28">
       <ModeToggle mode="collect" hotelId={hotel.id} hotelName={hotel.name} dirty={backPieces + itemPieces > 0} />
-      <div className="grid gap-4 lg:grid-cols-[minmax(320px,400px)_1fr]">
+      <div className="grid gap-4 lg:grid-cols-[minmax(260px,320px)_1fr_250px]">
         <section className="order-2 flex flex-col rounded-3xl border border-(--line) bg-white lg:order-1" aria-label={t("Collect list")}>
           <div className="border-b border-(--line) px-4 py-3">
             <p className="text-xs uppercase tracking-wider text-(--muted)">{t("Collect from")}</p>
@@ -206,11 +215,11 @@ export function CollectPos({
             <LineGroup title={t("Their items picked up")} show={itemLines.length > 0}>
               {itemLines.map((r) => (
                 <ListLine
-                  key={r.serviceItemId}
-                  active={selected?.kind === "items" && selected.id === r.serviceItemId}
-                  onClick={() => select({ kind: "items", id: r.serviceItemId })}
+                  key={r.key}
+                  active={selected?.kind === "items" && selected.id === r.key}
+                  onClick={() => select({ kind: "items", id: r.key })}
                   name={r.name}
-                  detail={`${itemQty[r.serviceItemId]} ${t("pcs")}`}
+                  detail={`${itemQty[r.key]} ${t("pcs")}`}
                 />
               ))}
             </LineGroup>
@@ -223,7 +232,7 @@ export function CollectPos({
           </div>
         </section>
 
-        <section className="order-1 space-y-4 lg:order-2">
+        <section className="order-1 min-w-0 space-y-3 lg:order-2">
           <div className="flex flex-wrap gap-2" role="tablist">
             {modeTabs
               .filter((m) => m.show)
@@ -248,24 +257,33 @@ export function CollectPos({
           </div>
 
           {mode === "items" ? (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
-              {itemRows.map((r) => (
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(124px,1fr))] gap-2">
+              {allItems.map((r) => (
                 <ProductTile
-                  key={r.serviceItemId}
+                  key={r.key}
                   name={r.name}
-                  info={t("Already with us: {count}", { count: r.withUs })}
-                  count={itemQty[r.serviceItemId] ?? 0}
-                  selected={selected?.kind === "items" && selected.id === r.serviceItemId}
-                  onTap={() => tap(r.serviceItemId)}
+                  info={r.withUs > 0 ? t("Already with us: {count}", { count: r.withUs }) : undefined}
+                  photoPath={r.photoPath}
+                  count={itemQty[r.key] ?? 0}
+                  selected={selected?.kind === "items" && selected.id === r.key}
+                  onTap={() => tap(r.key)}
                 />
               ))}
+              <button
+                type="button"
+                onClick={() => setOtherOpen(true)}
+                className="flex min-h-24 items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-(--line) bg-white p-2.5 text-sm font-semibold text-(--teal) hover:border-(--teal)"
+              >
+                <Plus className="size-5" aria-hidden />
+                {t("Other item")}
+              </button>
             </div>
           ) : rows.length === 0 ? (
             <p className="rounded-2xl border border-dashed border-(--line) bg-white p-8 text-center text-(--muted)">
               {t("This hotel doesn't hold any of your products right now.")}
             </p>
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(124px,1fr))] gap-2">
               {rows.map((r) => (
                 <ProductTile
                   key={r.productId}
@@ -280,9 +298,12 @@ export function CollectPos({
             </div>
           )}
 
-          <div className="grid gap-4 rounded-3xl border border-(--line) bg-white p-4 md:grid-cols-[1fr_260px]">
+          </section>
+
+        {/* Number pad column */}
+        <section className="order-2 space-y-3 self-start rounded-3xl border border-(--line) bg-white p-3 lg:sticky lg:top-24 lg:order-3">
             <div className="space-y-3">
-              <p className="text-sm text-(--muted)">
+              <p className="min-h-10 text-sm leading-snug text-(--muted)">
                 {selected ? (
                   <>
                     {t("Selected")}: <span className="font-semibold text-(--ink)">{selectedName}</span>
@@ -292,7 +313,7 @@ export function CollectPos({
                 )}
               </p>
               {selected?.kind === "rejected" && (
-                <div className="flex gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <PadTab active={padMode === "qty"} onClick={() => { setPadMode("qty"); setBuffer(""); }}>
                     {t("Quantity")}
                   </PadTab>
@@ -301,22 +322,20 @@ export function CollectPos({
                   </PadTab>
                 </div>
               )}
-              <div className="flex flex-wrap gap-2">
-                <Button size="lg" variant="secondary" disabled={!selected} onClick={() => setCount(selected, countOf(selected) - 1)} aria-label={t("One less")}>
+              <div className="grid grid-cols-3 gap-2">
+                <Button size="lg" variant="secondary" className="px-0" disabled={!selected} onClick={() => setCount(selected, countOf(selected) - 1)} aria-label={t("One less")}>
                   <Minus className="size-5" aria-hidden />
                 </Button>
-                <Button size="lg" variant="secondary" disabled={!selected} onClick={() => setCount(selected, countOf(selected) + 1)} aria-label={t("One more")}>
+                <Button size="lg" variant="secondary" className="px-0" disabled={!selected} onClick={() => setCount(selected, countOf(selected) + 1)} aria-label={t("One more")}>
                   <Plus className="size-5" aria-hidden />
                 </Button>
-                <Button size="lg" variant="secondary" disabled={!selected} onClick={() => { setCount(selected, 0); select(null); }}>
+                <Button size="lg" variant="secondary" className="px-0" disabled={!selected} onClick={() => { setCount(selected, 0); select(null); }} aria-label={t("Remove")}>
                   <Trash2 className="size-5" aria-hidden />
-                  {t("Remove")}
                 </Button>
               </div>
               <FormMessage state={state} />
             </div>
             <Keypad onKey={onKey} allowDecimal={padMode === "credit"} disabled={!selected} />
-          </div>
         </section>
       </div>
 
@@ -354,6 +373,32 @@ export function CollectPos({
           </div>
         </div>
       </div>
+
+      <Sheet open={otherOpen} title="Other item" onClose={() => setOtherOpen(false)}>
+        <p className="text-sm text-(--muted)">{t("A type of item you don't have as a product, for example Curtain.")}</p>
+        <label className="block">
+          <span className="mb-1.5 block text-sm font-medium">{t("Name")}</span>
+          <input className={inputClass} value={otherName} onChange={(e) => setOtherName(e.target.value)} placeholder={t("e.g. Curtain")} autoFocus />
+        </label>
+        <Button
+          size="lg"
+          disabled={!otherName.trim()}
+          onClick={() => {
+            const name = otherName.trim();
+            const key = `n:${name.toLowerCase()}`;
+            const existing = allItems.find((i) => i.key === key);
+            if (!existing) setExtraItems((items) => [...items, { key, productId: null, name, photoPath: null, withUs: 0 }]);
+            setOtherName("");
+            setOtherOpen(false);
+            setMode("items");
+            setItemQty((q) => ({ ...q, [key]: (q[key] ?? 0) + 1 }));
+            select({ kind: "items", id: key });
+          }}
+        >
+          <Plus className="size-5" aria-hidden />
+          {t("Add")}
+        </Button>
+      </Sheet>
 
       <Sheet open={noteOpen} title="Note" onClose={() => setNoteOpen(false)}>
         <textarea className={`${inputClass} h-32 py-3`} value={note} onChange={(e) => setNote(e.target.value)} />
@@ -408,7 +453,7 @@ function PadTab({ active, onClick, children }: { active: boolean; onClick: () =>
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`h-12 rounded-xl border-2 px-4 text-sm font-semibold ${active ? "border-(--ink) bg-(--ink) text-white" : "border-(--line) bg-white"}`}
+      className={`min-h-12 rounded-xl border-2 px-3 text-sm font-semibold leading-tight ${active ? "border-(--ink) bg-(--ink) text-white" : "border-(--line) bg-white"}`}
     >
       {children}
     </button>

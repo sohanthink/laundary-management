@@ -2,8 +2,8 @@ import "server-only";
 import { requirePermission } from "@/server/auth/dal";
 import { db } from "@/server/db";
 import { getDue } from "@/server/modules/ledger/core";
-import { activePrices, activeServicePrices } from "@/server/modules/prices/queries";
-import { getItemTracking, getProductTracking, lastChargedPrices } from "@/server/modules/tracking/core";
+import { activePrices } from "@/server/modules/prices/queries";
+import { getItemTracking, getProductTracking, itemKey, lastChargedPrices } from "@/server/modules/tracking/core";
 
 export async function getCollectScreen(hotelId: string | undefined) {
   await requirePermission("return:create");
@@ -13,10 +13,14 @@ export async function getCollectScreen(hotelId: string | undefined) {
   const hotel = await db.hotel.findUnique({ where: { id: hotelId } });
   if (!hotel) return empty;
 
-  const [tracks, itemTracks, servicePrices, deal, lastPrices, due] = await Promise.all([
+  const [tracks, itemTracks, allProducts, deal, lastPrices, due] = await Promise.all([
     getProductTracking(db, hotelId),
     getItemTracking(db, hotelId),
-    activeServicePrices(db, hotelId),
+    db.product.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, photoPath: true },
+    }),
     activePrices(db, hotelId),
     lastChargedPrices(db, hotelId),
     getDue(db, hotelId),
@@ -41,10 +45,21 @@ export async function getCollectScreen(hotelId: string | undefined) {
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const withUs = new Map(itemTracks.map((t) => [t.serviceItemId, t.withUs]));
-  const itemRows = servicePrices
-    .filter((p) => p.serviceItem.isActive)
-    .map((p) => ({ serviceItemId: p.serviceItemId, name: p.serviceItem.name, withUs: withUs.get(p.serviceItemId) ?? 0 }));
+  // Tiles for picking up the hotel's own pieces: all our product types, plus
+  // "Other" names already used for this hotel. New "Other" names are typed on screen.
+  const withUs = new Map(itemTracks.map((t) => [t.key, t.withUs]));
+  const itemRows = [
+    ...allProducts.map((p) => ({
+      key: itemKey(p.id, p.name),
+      productId: p.id as string | null,
+      name: p.name,
+      photoPath: p.photoPath,
+      withUs: withUs.get(itemKey(p.id, p.name)) ?? 0,
+    })),
+    ...itemTracks
+      .filter((t) => !t.productId)
+      .map((t) => ({ key: t.key, productId: null, name: t.name, photoPath: null, withUs: t.withUs })),
+  ];
 
   return { hotel, rows, itemRows, due };
 }

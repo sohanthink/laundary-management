@@ -1,6 +1,7 @@
 import { Home } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { BackButton } from "@/components/back-button";
 import { LanguageSwitch } from "@/components/language-switch";
 import { LogoutButton } from "@/components/logout-button";
 import { getT } from "@/server/i18n";
@@ -25,6 +26,7 @@ export async function AppShell({
   return (
     <div className="flex min-h-full flex-1 flex-col bg-(--paper)">
       <header className="no-print sticky top-0 z-30 flex flex-wrap items-center gap-3 border-b border-(--line) bg-white px-4 py-3 sm:px-6">
+        <BackButton homeHref={homeHref} />
         <Link
           href={homeHref}
           className="inline-flex h-14 items-center gap-2 rounded-2xl bg-(--ink) px-6 text-lg font-bold tracking-wide text-white transition hover:bg-black focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-(--teal-soft)"

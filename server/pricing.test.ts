@@ -76,7 +76,7 @@ describe("calculateSend", () => {
 describe("describeDiscount", () => {
   it("formats each type", () => {
     expect(describeDiscount("PERCENT", 1000)).toBe("10%");
-    expect(describeDiscount("FLAT", 500)).toBe("5,00 € off");
+    expect(describeDiscount("FLAT", 500)).toBe("5.00 € off");
     expect(describeDiscount("NONE", 0)).toBe("None");
   });
 });

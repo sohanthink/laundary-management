@@ -13,14 +13,6 @@ export function activePrices(client: Client, hotelId: string) {
   });
 }
 
-export function activeServicePrices(client: Client, hotelId: string) {
-  return client.hotelServicePrice.findMany({
-    where: { hotelId, validTo: null },
-    include: { serviceItem: true },
-    orderBy: { serviceItem: { name: "asc" } },
-  });
-}
-
 export async function getHotelPricePage(hotelId: string) {
   await requirePermission("price:manage");
   const [hotel, prices, products, history] = await Promise.all([

@@ -9,7 +9,6 @@ import { removeHotelPrice, setHotelPrice } from "@/server/modules/prices/actions
 import { getHotelPricePage } from "@/server/modules/prices/queries";
 import { describeDiscount } from "@/server/pricing";
 import { DiscountFields } from "./discount-fields";
-import { ServicePricesCard } from "./service-prices";
 import { getT } from "@/server/i18n";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -84,8 +83,6 @@ export default async function HotelPricesPage({ params }: PageProps<"/admin/hote
             </div>
           )}
         </Card>
-
-        <ServicePricesCard hotelId={hotel.id} />
 
         {history.length > 0 && (
           <Card title="Price history">

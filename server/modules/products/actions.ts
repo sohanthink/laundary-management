@@ -62,36 +62,6 @@ export async function createProduct(_: ActionState, formData: FormData): Promise
   return done((await getT())("Product \"{name}\" created.", { name: parsed.data.name }));
 }
 
-const itemSchema = z.object({ name: text("Name") });
-
-/** Types of the hotel's own items you wash (Curtain, Blanket, ...). */
-export async function createServiceItem(_: ActionState, formData: FormData): Promise<ActionState> {
-  const user = await requirePermission("catalog:manage");
-  const parsed = parseForm(itemSchema, formData);
-  if (!parsed.success) return parsed.state;
-  try {
-    const item = await db.serviceItem.create({ data: parsed.data });
-    await logAudit({ userId: user.id, action: "serviceItem.create", entity: "ServiceItem", entityId: item.id, after: item });
-  } catch (error) {
-    return toActionError(error);
-  }
-  return done((await getT())("\"{name}\" added. Set its washing price on each hotel's prices page.", { name: parsed.data.name }));
-}
-
-export async function updateServiceItem(_: ActionState, formData: FormData): Promise<ActionState> {
-  const user = await requirePermission("catalog:manage");
-  const parsed = parseForm(itemSchema.extend({ id, isActive: checkbox }), formData);
-  if (!parsed.success) return parsed.state;
-  const { id: itemId, ...data } = parsed.data;
-  try {
-    const after = await db.serviceItem.update({ where: { id: itemId }, data });
-    await logAudit({ userId: user.id, action: "serviceItem.update", entity: "ServiceItem", entityId: itemId, after });
-  } catch (error) {
-    return toActionError(error);
-  }
-  return done("Item updated.");
-}
-
 const updateProductSchema = productSchema.extend({
   id,
   isActive: checkbox,

@@ -3,7 +3,7 @@ import { requirePermission } from "@/server/auth/dal";
 import { db } from "@/server/db";
 import { getDue, getDueByHotel } from "@/server/modules/ledger/core";
 import { buildStatement, type StatementRange } from "@/server/modules/ledger/statement";
-import { activePrices, activeServicePrices } from "@/server/modules/prices/queries";
+import { activePrices } from "@/server/modules/prices/queries";
 import { getItemTracking, getProductTracking } from "@/server/modules/tracking/core";
 
 export async function getActiveHotelOptions() {
@@ -52,9 +52,8 @@ export async function loadHotelProfile(hotelId: string, range: StatementRange) {
   });
   if (!hotel) return null;
 
-  const [prices, servicePrices, productTracks, itemTracks, due, statement, sends] = await Promise.all([
+  const [prices, productTracks, itemTracks, due, statement, sends] = await Promise.all([
     activePrices(db, hotelId),
-    activeServicePrices(db, hotelId),
     getProductTracking(db, hotelId),
     getItemTracking(db, hotelId),
     getDue(db, hotelId),
@@ -67,23 +66,15 @@ export async function loadHotelProfile(hotelId: string, range: StatementRange) {
     }),
   ]);
 
-  const [products, items] = await Promise.all([
-    db.product.findMany({
-      where: { id: { in: productTracks.map((t) => t.productId) } },
-      select: { id: true, name: true, photoPath: true },
-    }),
-    db.serviceItem.findMany({
-      where: { id: { in: itemTracks.map((t) => t.serviceItemId) } },
-      select: { id: true, name: true },
-    }),
-  ]);
+  const products = await db.product.findMany({
+    where: { id: { in: productTracks.map((t) => t.productId) } },
+    select: { id: true, name: true, photoPath: true },
+  });
   const product = new Map(products.map((p) => [p.id, p]));
-  const itemName = new Map(items.map((i) => [i.id, i.name]));
 
   return {
     hotel,
     prices,
-    servicePrices,
     tracking: productTracks
       .map((t) => ({
         ...t,
@@ -91,9 +82,7 @@ export async function loadHotelProfile(hotelId: string, range: StatementRange) {
         photoPath: product.get(t.productId)?.photoPath ?? null,
       }))
       .sort((a, b) => a.name.localeCompare(b.name)),
-    itemTracking: itemTracks
-      .map((t) => ({ ...t, name: itemName.get(t.serviceItemId) ?? "" }))
-      .sort((a, b) => a.name.localeCompare(b.name)),
+    itemTracking: itemTracks,
     due,
     statement,
     sends,

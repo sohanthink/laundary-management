@@ -142,6 +142,7 @@ model Product {
   hotelPrices    HotelPrice[]
   stockMovements StockMovement[]
   sendLines      SendLine[]
+  hotelItems     HotelItemMovement[]
 
   @@unique([categoryId, name])
 }
@@ -199,7 +200,6 @@ model Hotel {
 
   customer       Customer            @relation(fields: [customerId], references: [id])
   prices         HotelPrice[]
-  servicePrices  HotelServicePrice[]
   sends          Send[]
   stockMovements StockMovement[]
   itemMovements  HotelItemMovement[]
@@ -270,38 +270,15 @@ model SendLine {
   product Product @relation(fields: [productId], references: [id])
 }
 
-// ---------- Hotel's own items we wash (curtains, blankets, ...) ----------
-
-model ServiceItem {
-  id        String              @id @default(cuid())
-  name      String              @unique
-  isActive  Boolean             @default(true)
-  createdAt DateTime            @default(now())
-  prices    HotelServicePrice[]
-  movements HotelItemMovement[]
-}
-
-model HotelServicePrice {
-  id            String    @id @default(cuid())
-  hotelId       String
-  serviceItemId String
-  price         Int
-  validFrom     DateTime  @default(now())
-  validTo       DateTime?
-  createdById   String
-
-  hotel       Hotel       @relation(fields: [hotelId], references: [id])
-  serviceItem ServiceItem @relation(fields: [serviceItemId], references: [id])
-
-  @@index([hotelId, serviceItemId, validTo])
-}
-
-// COLLECTED on the Collect screen; DELIVERED (with price) as part of a Send.
+// The hotel's OWN pieces we wash. COLLECTED on the Collect screen; DELIVERED
+// (with the washing price typed at the time) as part of a Send.
+// Either one of our product types (productId) or a free name ("Other").
 // Items with us = collected - delivered (delivered rows of voided sends don't count).
 model HotelItemMovement {
   id                String                @id @default(cuid())
   hotelId           String
-  serviceItemId     String
+  productId         String?
+  itemName          String
   type              HotelItemMovementType
   quantity          Int
   unitPriceSnapshot Int                   @default(0)
@@ -312,11 +289,12 @@ model HotelItemMovement {
   createdById       String
   createdAt         DateTime              @default(now())
 
-  hotel       Hotel       @relation(fields: [hotelId], references: [id])
-  serviceItem ServiceItem @relation(fields: [serviceItemId], references: [id])
-  send        Send?       @relation(fields: [sendId], references: [id])
+  hotel   Hotel    @relation(fields: [hotelId], references: [id])
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  send    Send?    @relation(fields: [sendId], references: [id])
 
-  @@index([hotelId, serviceItemId])
+  @@index([hotelId, productId])
+  @@index([hotelId, itemName])
   @@index([batchId])
 }
 

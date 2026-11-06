@@ -5,7 +5,7 @@ import { useT } from "@/components/i18n-provider";
 
 const KEYS = ["7", "8", "9", "4", "5", "6", "1", "2", "3"];
 
-/** Big number pad for quantities and prices. Calls onKey with "0"-"9", ",", "back" or "clear". */
+/** Big number pad for quantities and prices. Calls onKey with "0"-"9", ".", "back" or "clear". */
 export function Keypad({
   onKey,
   allowDecimal = false,
@@ -29,10 +29,10 @@ export function Keypad({
         type="button"
         className={keyClass}
         disabled={disabled || !allowDecimal}
-        onClick={() => onKey(",")}
-        aria-label={t("Decimal comma")}
+        onClick={() => onKey(".")}
+        aria-label={t("Decimal point")}
       >
-        ,
+        .
       </button>
       <button type="button" className={keyClass} disabled={disabled} onClick={() => onKey("0")}>
         0
@@ -62,13 +62,13 @@ export function Keypad({
 export function applyKey(current: string, key: string, allowDecimal: boolean) {
   if (key === "clear") return "";
   if (key === "back") return current.slice(0, -1);
-  if (key === ",") {
-    if (!allowDecimal || current.includes(",")) return current;
-    return current === "" ? "0," : `${current},`;
+  if (key === ".") {
+    if (!allowDecimal || current.includes(".")) return current;
+    return current === "" ? "0." : `${current}.`;
   }
   const next = current === "0" ? key : current + key;
   if (allowDecimal) {
-    const [, decimals = ""] = next.split(",");
+    const [, decimals = ""] = next.split(".");
     if (decimals.length > 2) return current;
   }
   return next.length > 7 ? current : next;

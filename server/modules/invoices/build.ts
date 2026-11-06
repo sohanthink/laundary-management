@@ -20,7 +20,7 @@ export async function buildInvoiceDraft(client: Client, hotelId: string, fromIso
       where: { hotelId, status: "ACTIVE", invoiceId: null, createdAt: { gte: from, lt: to } },
       include: {
         lines: { include: { product: true } },
-        itemLines: { include: { serviceItem: true } },
+        itemLines: true,
       },
       orderBy: { createdAt: "asc" },
     }),
@@ -49,7 +49,7 @@ export async function buildInvoiceDraft(client: Client, hotelId: string, fromIso
   let wholeDiscount = 0;
   for (const send of sends) {
     for (const l of send.lines) add(l.product.name, l.quantity, l.finalUnitPrice);
-    for (const l of send.itemLines) add(`${l.serviceItem.name} (washing)`, l.quantity, l.unitPriceSnapshot);
+    for (const l of send.itemLines) add(`${l.itemName} (washing)`, l.quantity, l.unitPriceSnapshot);
     wholeDiscount += send.wholeDiscount;
   }
 

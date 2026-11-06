@@ -10,6 +10,7 @@ import { id, jsonArray, optionalText, parseForm, quantity, type ActionState } fr
 import { formatMoney, isMoneyInput, toCents } from "@/server/money";
 import { BusinessError, done, SERIALIZABLE, toActionError } from "@/server/modules/shared";
 import { assertEnough } from "@/server/modules/stock/core";
+import { hotelItemFields, resolveHotelItems } from "@/server/modules/tracking/items";
 
 const collectSchema = z.object({
   hotelId: id,
@@ -21,10 +22,10 @@ const collectSchema = z.object({
       creditPerPiece: z
         .string()
         .trim()
-        .refine((v) => !v || isMoneyInput(v), "Credit must be a number like 18 or 18,50"),
+        .refine((v) => !v || isMoneyInput(v), "Credit must be a number like 18 or 18.50"),
     }),
   ),
-  items: jsonArray(z.object({ serviceItemId: z.string().min(1), quantity })),
+  items: jsonArray(z.object({ ...hotelItemFields, quantity })),
   note: optionalText,
 });
 
@@ -90,10 +91,12 @@ export async function collectFromHotel(_: ActionState, formData: FormData): Prom
       }
 
       if (items.length > 0) {
+        const resolved = await resolveHotelItems(tx, items);
         await tx.hotelItemMovement.createMany({
-          data: items.map((i) => ({
+          data: resolved.map((i) => ({
             hotelId,
-            serviceItemId: i.serviceItemId,
+            productId: i.productId,
+            itemName: i.itemName,
             type: "COLLECTED" as const,
             quantity: i.quantity,
             batchId,

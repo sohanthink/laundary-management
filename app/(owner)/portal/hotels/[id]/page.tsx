@@ -21,7 +21,7 @@ export default async function OwnerHotelPage({ params, searchParams }: PageProps
   const range = rangeFromParams(sp.from, sp.to);
   const profile = await getOwnerHotel(id, range);
   if (!profile) notFound();
-  const { hotel, prices, servicePrices, tracking, itemTracking, due, statement, sends } = profile;
+  const { hotel, prices, tracking, itemTracking, due, statement, sends } = profile;
 
   return (
     <>
@@ -54,7 +54,7 @@ export default async function OwnerHotelPage({ params, searchParams }: PageProps
         </div>
         <div className="grid gap-6 lg:grid-cols-2">
           <Card title="Agreed prices">
-            <PricesTable prices={prices} servicePrices={servicePrices} />
+            <PricesTable prices={prices} />
           </Card>
           <Card title="Recent deliveries">
             <SendsTable sends={sends} href={(sendId) => `/portal/sends/${sendId}`} />
