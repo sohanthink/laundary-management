@@ -3,6 +3,7 @@ import { requirePermission } from "@/server/auth/dal";
 import { db } from "@/server/db";
 import { startOfMonth } from "@/server/dates";
 import { getDueByHotel } from "@/server/modules/ledger/core";
+import { counterTotals } from "@/server/modules/counter/queries";
 import { getItemTracking, getProductTracking } from "@/server/modules/tracking/core";
 
 export async function getHomeStats() {
@@ -77,7 +78,8 @@ export async function getDashboard() {
     .sort((a, b) => b.due - a.due)
     .slice(0, 5);
 
-  const income = paymentsThisMonth._sum.amount ?? 0;
+  const counter = await counterTotals(db, monthStart, new Date(Date.now() + 1000));
+  const income = (paymentsThisMonth._sum.amount ?? 0) + counter.paymentsTotal;
   const expenses = expensesThisMonth._sum.amount ?? 0;
 
   return {

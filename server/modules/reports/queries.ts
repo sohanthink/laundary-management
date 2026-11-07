@@ -3,6 +3,7 @@ import { requirePermission } from "@/server/auth/dal";
 import { db } from "@/server/db";
 import { daysBetween, startOfYear } from "@/server/dates";
 import { dueFromSums } from "@/server/ledger";
+import { counterTotals } from "@/server/modules/counter/queries";
 import { getSumsByHotel } from "@/server/modules/ledger/core";
 import { fifoOutstanding } from "@/server/stock";
 
@@ -76,12 +77,16 @@ export async function getYearlyAudit(year: number) {
   );
 
   const expenseTotal = expenses._sum.amount ?? 0;
+  const counter = await counterTotals(db, from, to);
+  const income = totals.payments + counter.paymentsTotal;
   return {
     rows,
     totals,
-    income: totals.payments,
+    hotelIncome: totals.payments,
+    counterIncome: counter.paymentsTotal,
+    income,
     expenses: expenseTotal,
-    net: totals.payments - expenseTotal,
+    net: income - expenseTotal,
   };
 }
 
@@ -127,6 +132,8 @@ export function yearlyAuditCsv(year: number, audit: YearlyAudit) {
     String(t.piecesSent),
   ]);
   lines.push([]);
+  lines.push(["Hotel payments received", eur(audit.hotelIncome)]);
+  lines.push(["Counter (walk-in) payments received", eur(audit.counterIncome)]);
   lines.push(["Income (payments received)", eur(audit.income)]);
   lines.push(["Expenses", eur(audit.expenses)]);
   lines.push(["Net", eur(audit.net)]);

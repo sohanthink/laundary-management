@@ -74,7 +74,13 @@ export default async function TodayPage({ searchParams }: PageProps<"/admin/toda
           <Row label={t("Credit for rejected")} value={s.collected.credits ? `-${formatMoney(s.collected.credits)}` : formatMoney(0)} />
         </Section>
 
-        <Section title={t("Payments")}>
+        <Section title={t("Counter (walk-in)")}>
+          <Row label={t("Orders")} value={s.counter.orders} />
+          <Row label={t("Pieces")} value={s.counter.pieces} />
+          <Row label={t("Total")} value={formatMoney(s.counter.total)} strong />
+        </Section>
+
+        <Section title={t("Payments (hotels + counter)")}>
           {s.payments.byMethod.length === 0 && <Row label={t("None")} value={formatMoney(0)} />}
           {s.payments.byMethod.map(([method, amount]) => (
             <Row key={method} label={t(METHOD_LABEL[method])} value={formatMoney(amount)} />

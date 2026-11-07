@@ -138,7 +138,7 @@ model Product {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  category       Category        @relation(fields: [categoryId], references: [id])
+  category       Category            @relation(fields: [categoryId], references: [id])
   hotelPrices    HotelPrice[]
   stockMovements StockMovement[]
   sendLines      SendLine[]
@@ -303,24 +303,24 @@ model HotelItemMovement {
 // CHARGE and PAYMENT amounts are positive. ADJUSTMENT is signed:
 // positive increases the due, negative decreases it.
 model LedgerEntry {
-  id             String         @id @default(cuid())
-  hotelId        String
-  type           LedgerType
-  amount         Int
-  date           DateTime
-  method         PaymentMethod?
-  note           String?
-  sendId         String?
+  id          String         @id @default(cuid())
+  hotelId     String
+  type        LedgerType
+  amount      Int
+  date        DateTime
+  method      PaymentMethod?
+  note        String?
+  sendId      String?
   // groups a credit with the Collect action that created it
-  batchId        String?
+  batchId     String?
   // rejected-piece credits included in an invoice, and the payment made when it is marked paid
-  invoiceId      String?
-  status         RecordStatus   @default(ACTIVE)
-  voidReason     String?
-  createdById    String
-  createdAt      DateTime       @default(now())
+  invoiceId   String?
+  status      RecordStatus   @default(ACTIVE)
+  voidReason  String?
+  createdById String
+  createdAt   DateTime       @default(now())
 
-  hotel Hotel @relation(fields: [hotelId], references: [id])
+  hotel   Hotel    @relation(fields: [hotelId], references: [id])
   send    Send?    @relation(fields: [sendId], references: [id])
   invoice Invoice? @relation(fields: [invoiceId], references: [id])
 
@@ -396,4 +396,86 @@ model InvoiceLine {
 model Setting {
   key   String @id
   value String
+}
+
+// ---------- Counter (walk-in customers) ----------
+
+enum CounterService {
+  WASH_IRON
+  IRON_ONLY
+}
+
+// Garment price list for walk-in customers. Iron only = 50% of the wash + iron price.
+model CounterItem {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  washIronPrice Int
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  lines CounterSaleLine[]
+}
+
+// Found again by phone number; the name is optional.
+model WalkInCustomer {
+  id        String   @id @default(cuid())
+  phone     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+
+  sales    CounterSale[]
+  payments CounterPayment[]
+}
+
+model CounterSale {
+  id          String       @id @default(cuid())
+  number      Int          @unique @default(autoincrement())
+  customerId  String
+  total       Int
+  note        String?
+  status      RecordStatus @default(ACTIVE)
+  voidReason  String?
+  createdById String
+  createdAt   DateTime     @default(now())
+
+  customer WalkInCustomer    @relation(fields: [customerId], references: [id])
+  lines    CounterSaleLine[]
+  payments CounterPayment[]
+
+  @@index([customerId, createdAt])
+  @@index([createdAt])
+}
+
+model CounterSaleLine {
+  id            String         @id @default(cuid())
+  saleId        String
+  counterItemId String?
+  itemName      String
+  service       CounterService
+  quantity      Int
+  unitPrice     Int
+  lineTotal     Int
+
+  sale CounterSale  @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  item CounterItem? @relation(fields: [counterItemId], references: [id], onDelete: SetNull)
+}
+
+// Due for a walk-in customer = active sales - active payments.
+model CounterPayment {
+  id          String        @id @default(cuid())
+  customerId  String
+  saleId      String?
+  amount      Int
+  method      PaymentMethod
+  date        DateTime      @default(now())
+  status      RecordStatus  @default(ACTIVE)
+  voidReason  String?
+  createdById String
+  createdAt   DateTime      @default(now())
+
+  customer WalkInCustomer @relation(fields: [customerId], references: [id])
+  sale     CounterSale?   @relation(fields: [saleId], references: [id])
+
+  @@index([customerId, date])
+  @@index([date])
 }

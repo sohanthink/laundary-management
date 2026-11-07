@@ -3,6 +3,7 @@
 // Delete that folder to start fresh. For real use, set up Neon (see README).
 
 import { spawn } from "node:child_process";
+import { watch } from "node:fs";
 import { PGlite } from "@electric-sql/pglite";
 import { PGLiteSocketServer } from "@electric-sql/pglite-socket";
 
@@ -38,14 +39,51 @@ console.log(`\n  Sign in at http://localhost:${process.env.PORT || 3000}/login`)
 console.log(`  Email:    ${env.ADMIN_EMAIL}`);
 console.log(`  Password: ${env.ADMIN_PASSWORD}\n`);
 
-const next = spawn("npx", ["next", "dev"], { env, stdio: "inherit", shell: process.platform === "win32" });
+let next = null;
+let restarting = false;
+
+function startNext() {
+  next = spawn("npx", ["next", "dev"], { env, stdio: "inherit", shell: process.platform === "win32" });
+  next.on("exit", () => {
+    if (!restarting) shutdown();
+  });
+}
+
+function stopNext() {
+  return new Promise((resolve) => {
+    if (!next || next.exitCode !== null) return resolve();
+    next.once("exit", resolve);
+    next.kill("SIGINT");
+  });
+}
+
+// When a new database update (migration) arrives, apply it and restart the app,
+// so the running server never uses an old database layout.
+let timer = null;
+watch("prisma/migrations", { recursive: true }, () => {
+  clearTimeout(timer);
+  timer = setTimeout(async () => {
+    if (restarting) return;
+    restarting = true;
+    console.log("\n  Database update found: applying it and restarting the app...\n");
+    try {
+      await stopNext();
+      await run("npx", ["prisma", "migrate", "deploy"]);
+      await run("npx", ["prisma", "generate"]);
+    } catch (error) {
+      console.error(error);
+    }
+    restarting = false;
+    startNext();
+  }, 1500);
+});
 
 async function shutdown() {
-  next.kill("SIGINT");
+  await stopNext();
   await server.stop();
   await db.close();
   process.exit(0);
 }
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
-next.on("exit", shutdown);
+startNext();

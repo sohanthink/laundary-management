@@ -17,8 +17,9 @@ export default async function YearlyAuditPage({ searchParams }: PageProps<"/admi
   const { year: yearParam } = await searchParams;
   const parsedYear = Number(yearParam);
   const year = Number.isInteger(parsedYear) && parsedYear > 2000 && parsedYear < 3000 ? parsedYear : currentYear();
+  const t = await getT();
   const audit = await getYearlyAudit(year);
-  const t = audit.totals;
+  const totals = audit.totals;
 
   return (
     <>
@@ -42,7 +43,12 @@ export default async function YearlyAuditPage({ searchParams }: PageProps<"/admi
       />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <Stat label="Income (payments received)" value={formatMoney(audit.income)} tone="good" />
+        <Stat
+          label="Income (payments received)"
+          value={formatMoney(audit.income)}
+          hint={`${t("Hotels")} ${formatMoney(audit.hotelIncome)} · ${t("Counter")} ${formatMoney(audit.counterIncome)}`}
+          tone="good"
+        />
         <Stat label="Expenses" value={formatMoney(audit.expenses)} tone="warn" />
         <Stat label="Net" value={formatMoney(audit.net)} tone={audit.net >= 0 ? "good" : "warn"} />
       </div>
@@ -93,14 +99,14 @@ export default async function YearlyAuditPage({ searchParams }: PageProps<"/admi
               <tr className="font-semibold">
                 <Td>Total</Td>
                 <Td />
-                <Td align="right">{formatMoney(t.opening)}</Td>
-                <Td align="right">{formatMoney(t.charges)}</Td>
-                <Td align="right">{formatMoney(t.adjustments)}</Td>
-                <Td align="right">{formatMoney(t.payments)}</Td>
-                <Td align="right">{formatMoney(t.closing)}</Td>
-                <Td align="right">{formatMoney(t.agreedDiscount)}</Td>
-                <Td align="right">{formatMoney(t.extraDiscount)}</Td>
-                <Td align="right">{t.piecesSent}</Td>
+                <Td align="right">{formatMoney(totals.opening)}</Td>
+                <Td align="right">{formatMoney(totals.charges)}</Td>
+                <Td align="right">{formatMoney(totals.adjustments)}</Td>
+                <Td align="right">{formatMoney(totals.payments)}</Td>
+                <Td align="right">{formatMoney(totals.closing)}</Td>
+                <Td align="right">{formatMoney(totals.agreedDiscount)}</Td>
+                <Td align="right">{formatMoney(totals.extraDiscount)}</Td>
+                <Td align="right">{totals.piecesSent}</Td>
               </tr>
             </tbody>
           </Table>

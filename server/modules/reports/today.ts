@@ -3,6 +3,7 @@ import type { PaymentMethod } from "@prisma/client";
 import { requirePermission } from "@/server/auth/dal";
 import { db } from "@/server/db";
 import { endOfLocalDay, startOfLocalDay } from "@/server/dates";
+import { counterTotals } from "@/server/modules/counter/queries";
 
 /** Everything that happened on one day, for the printable daily summary. */
 export async function getDaySummary(isoDate: string) {
@@ -32,6 +33,7 @@ export async function getDaySummary(isoDate: string) {
     }),
     db.expense.aggregate({ where: { paidAt: { gte: from, lt: to } }, _sum: { amount: true } }),
   ]);
+  const counter = await counterTotals(db, from, to);
 
   const moved = (type: "RETURN" | "REJECT") => movements.find((m) => m.type === type)?._sum.quantity ?? 0;
   const byMethod = new Map<PaymentMethod, number>();
@@ -53,7 +55,10 @@ export async function getDaySummary(isoDate: string) {
   }
   for (const p of payments) hotelRow(p.hotelId, p.hotel.name).paid += p.amount;
 
-  const paymentsTotal = payments.reduce((t, p) => t + p.amount, 0);
+  for (const [method, amount] of counter.paymentsByMethod) {
+    byMethod.set(method, (byMethod.get(method) ?? 0) + amount);
+  }
+  const paymentsTotal = payments.reduce((t, p) => t + p.amount, 0) + counter.paymentsTotal;
   const expensesTotal = expenses._sum.amount ?? 0;
 
   return {
@@ -69,6 +74,7 @@ export async function getDaySummary(isoDate: string) {
       theirItems: itemsCollected._sum.quantity ?? 0,
       credits: -(credits._sum.amount ?? 0),
     },
+    counter: { orders: counter.salesCount, pieces: counter.pieces, total: counter.salesTotal, paid: counter.paymentsTotal },
     payments: { total: paymentsTotal, byMethod: [...byMethod.entries()] },
     expenses: expensesTotal,
     net: paymentsTotal - expensesTotal,
