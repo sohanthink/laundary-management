@@ -682,4 +682,16 @@ export const it: Record<string, string> = {
   Profit: "Utile",
   "Earned counts everything charged in the period, paid or not. Received counts only money that came in. The difference is unpaid dues.":
     "Maturato conta tutto ciò che è stato addebitato nel periodo, pagato o no. Incassato conta solo il denaro entrato. La differenza sono i saldi non pagati.",
+  "Searching...": "Ricerca...",
+  Typing: "Stai scrivendo",
+  "Plus sign": "Segno più",
+  Now: "Adesso",
+  "To collect": "Da incassare",
+  "Walk-in": "Privati",
+  "Our pieces at hotels": "Nostri capi negli hotel",
+  "Hotel items with us": "Capi degli hotel da noi",
+  Earned: "Guadagnato",
+  Spent: "Speso",
+  "Earned − Spent": "Guadagnato − Speso",
+  Loss: "Perdita",
 };

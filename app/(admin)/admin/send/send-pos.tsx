@@ -4,6 +4,7 @@ import { Banknote, Building2, Minus, NotebookPen, Percent, Plus, Trash2, X } fro
 import Link from "next/link";
 import { startTransition, useActionState, useMemo, useState } from "react";
 import { useT } from "@/components/i18n-provider";
+import { BAR_BUTTON } from "@/components/pos/bar";
 import { clearDraft, draftKey, loadDraft, useSaveDraft } from "@/components/pos/draft";
 import { applyKey, Keypad } from "@/components/pos/keypad";
 import { ModeToggle } from "@/components/pos/mode-toggle";
@@ -291,15 +292,15 @@ export function SendPos({
           </div>
         )}
       </div>
-      <div className="grid gap-4 lg:grid-cols-[minmax(260px,320px)_1fr_250px]">
+      <div className="grid gap-4 md:grid-cols-[200px_1fr_184px] lg:grid-cols-[minmax(240px,300px)_1fr_220px] xl:grid-cols-[minmax(260px,320px)_1fr_250px]">
         {/* Running list */}
-        <section className="order-2 flex flex-col rounded-3xl border border-(--line) bg-white lg:order-1" aria-label={t("Send list")}>
+        <section className="order-2 flex flex-col rounded-3xl border border-(--line) bg-white md:order-1" aria-label={t("Send list")}>
           <div className="flex items-center justify-between border-b border-(--line) px-4 py-3">
             <div>
               <p className="text-xs uppercase tracking-wider text-(--muted)">{t("Send to")}</p>
               <p className="text-lg font-semibold">{hotel.name}</p>
             </div>
-            <span className="rounded-full bg-(--paper) px-3 py-1 text-sm font-semibold">
+            <span className="whitespace-nowrap rounded-full bg-(--paper) px-3 py-1 text-sm font-semibold">
               {t("{count} pcs", { count: pieces })}
             </span>
           </div>
@@ -368,7 +369,7 @@ export function SendPos({
         </section>
 
         {/* Tiles + keypad */}
-        <section className="order-1 min-w-0 space-y-3 lg:order-2">
+        <section className="order-1 min-w-0 space-y-3 md:order-2">
           <div className="flex flex-wrap gap-2" role="tablist">
             {rows.length > 0 && (
               <TabButton active={tab === PRODUCTS_TAB} onClick={() => setTab(PRODUCTS_TAB)}>
@@ -423,7 +424,7 @@ export function SendPos({
           </section>
 
         {/* Number pad column */}
-        <section className="order-2 space-y-3 self-start rounded-3xl border border-(--line) bg-white p-3 lg:sticky lg:top-24 lg:order-3">
+        <section className="order-2 space-y-3 self-start rounded-3xl border border-(--line) bg-white p-3 md:sticky md:top-24 md:order-3">
             <div className="space-y-3">
               <p className="min-h-10 text-sm leading-snug text-(--muted)">
                 {selected ? (
@@ -471,26 +472,26 @@ export function SendPos({
       {/* Fixed action bar */}
       <div className="no-print fixed inset-x-0 bottom-0 z-20 border-t border-(--line) bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1400px] flex-wrap items-center gap-2 px-4 py-3 sm:px-6">
-          <Link href="/admin/send" className={buttonClass("secondary", "lg")}>
+          <Link href="/admin/send" className={`${buttonClass("secondary", "lg")} ${BAR_BUTTON}`}>
             <Building2 className="size-5" aria-hidden />
             {t("Hotel")}
           </Link>
-          <Button size="lg" variant="secondary" onClick={() => setSheet("discount")}>
+          <Button size="lg" variant="secondary" className={BAR_BUTTON} onClick={() => setSheet("discount")}>
             <Percent className="size-5" aria-hidden />
             {t("Discount")}
             {hasExtra && <span className="size-2 rounded-full bg-amber-500" aria-hidden />}
           </Button>
-          <Button size="lg" variant="secondary" onClick={() => setSheet("payment")}>
+          <Button size="lg" variant="secondary" className={BAR_BUTTON} onClick={() => setSheet("payment")}>
             <Banknote className="size-5" aria-hidden />
             {t("Payment")}
             {paid > 0 && <span className="tabular-nums">{formatMoney(paid)}</span>}
           </Button>
-          <Button size="lg" variant="secondary" onClick={() => setSheet("note")}>
+          <Button size="lg" variant="secondary" className={BAR_BUTTON} onClick={() => setSheet("note")}>
             <NotebookPen className="size-5" aria-hidden />
             {t("Note")}
           </Button>
           <div className="ml-auto flex gap-2">
-            <Button size="lg" variant="danger" onClick={clearAll} disabled={pending}>
+            <Button size="lg" variant="danger" className={BAR_BUTTON} onClick={clearAll} disabled={pending}>
               <X className="size-5" aria-hidden />
               {t("Cancel")}
             </Button>

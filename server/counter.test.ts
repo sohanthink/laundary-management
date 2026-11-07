@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { counterUnitPrice, isValidPhone, normalizePhone } from "./counter";
+import { applyPhoneKey, counterUnitPrice, isValidPhone, normalizePhone } from "./counter";
 
 describe("counter prices", () => {
   it("charges the full price for wash + iron", () => {
@@ -22,5 +22,15 @@ describe("phone numbers", () => {
   it("checks the length", () => {
     expect(isValidPhone("3331234567")).toBe(true);
     expect(isValidPhone("123")).toBe(false);
+  });
+
+  it("types a phone number from the number pad", () => {
+    expect(applyPhoneKey("", "+")).toBe("+");
+    expect(applyPhoneKey("33", "+")).toBe("33");
+    expect(applyPhoneKey("+39", "3")).toBe("+393");
+    expect(applyPhoneKey("+393", "back")).toBe("+39");
+    expect(applyPhoneKey("+393", "clear")).toBe("");
+    expect(applyPhoneKey("+39", ".")).toBe("+39");
+    expect(applyPhoneKey("123456789012345", "6")).toBe("123456789012345");
   });
 });

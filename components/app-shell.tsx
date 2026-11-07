@@ -14,12 +14,15 @@ export async function AppShell({
   userName,
   roleLabel,
   nav = [],
+  actions,
   children,
 }: {
   homeHref: string;
   userName: string;
   roleLabel: string;
   nav?: NavItem[];
+  /** Big always-visible buttons next to HOME. Takes room, so the logo and name hide on smaller screens. */
+  actions?: ReactNode;
   children: ReactNode;
 }) {
   const t = await getT();
@@ -34,7 +37,8 @@ export async function AppShell({
           <Home className="size-6" aria-hidden />
           {t("HOME")}
         </Link>
-        <span className="hidden font-display text-2xl tracking-tight text-(--ink) sm:inline">an-nafi</span>
+        {actions}
+        <span className={`hidden font-display text-2xl tracking-tight text-(--ink) ${actions ? "xl:inline" : "sm:inline"}`}>an-nafi</span>
         {nav.length > 0 && (
           <nav className="flex flex-wrap gap-2">
             {nav.map((item) => (
@@ -50,11 +54,11 @@ export async function AppShell({
         )}
         <div className="ml-auto flex items-center gap-3">
           <LanguageSwitch />
-          <div className="hidden text-right leading-tight md:block">
+          <div className={`hidden text-right leading-tight ${actions ? "xl:block" : "md:block"}`}>
             <p className="text-sm font-semibold text-(--ink)">{userName}</p>
             <p className="text-xs text-(--muted)">{t(roleLabel)}</p>
           </div>
-          <LogoutButton />
+          <LogoutButton compact={Boolean(actions)} />
         </div>
       </header>
       <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-6 sm:px-6">{children}</main>

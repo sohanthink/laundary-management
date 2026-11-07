@@ -10,6 +10,8 @@
   --teal: #1d6b5c;
   --teal-dark: #155548;
   --teal-soft: rgba(29, 107, 92, 0.16);
+  --walkin: #2f4f8a;
+  --walkin-dark: #243e6e;
 }
 
 @theme inline {

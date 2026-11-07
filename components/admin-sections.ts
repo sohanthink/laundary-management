@@ -32,7 +32,7 @@ export const SECTIONS: Record<SectionKey, { label: string; tiles: TileDef[] }> =
     tiles: [
       { href: "/admin/send", label: "Send", icon: Truck, tone: "primary", hint: "Products to hotel" },
       { href: "/admin/collect", label: "Collect", icon: PackageOpen, tone: "primary", hint: "Back from hotel" },
-      { href: "/admin/counter", label: "Counter", icon: Store, tone: "primary", hint: "Walk-in customers" },
+      { href: "/admin/counter", label: "Counter", icon: Store, tone: "walkin", hint: "Walk-in customers" },
       { href: "/admin/payments", label: "Payment", icon: Wallet, tone: "money", hint: "Money received" },
       { href: "/admin/expenses", label: "Expense", icon: Receipt, tone: "dark", hint: "Money spent" },
       { href: "/admin/today", label: "Today", icon: CalendarDays, hint: "Daily summary" },
@@ -45,7 +45,7 @@ export const SECTIONS: Record<SectionKey, { label: string; tiles: TileDef[] }> =
     tiles: [
       { href: "/admin/hotels", label: "Hotels", icon: Building2, tone: "primary", hint: "All hotels and their dues" },
       { href: "/admin/customers", label: "Customers", icon: Users, hint: "Owners and hotels" },
-      { href: "/admin/counter/customers", label: "Walk-in customers", icon: UserRound, hint: "Search by phone" },
+      { href: "/admin/counter/customers", label: "Walk-in customers", icon: UserRound, tone: "walkin", hint: "Search by phone" },
       { href: "/admin/invoices", label: "Invoices", icon: FileText, tone: "money" },
       { href: "/admin/payments", label: "Payments", icon: Wallet },
       { href: "/admin/expenses", label: "Expenses", icon: Receipt },

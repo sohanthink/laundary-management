@@ -5,15 +5,18 @@ import { useT } from "@/components/i18n-provider";
 
 const KEYS = ["7", "8", "9", "4", "5", "6", "1", "2", "3"];
 
-/** Big number pad for quantities and prices. Calls onKey with "0"-"9", ".", "back" or "clear". */
+/** Big number pad for quantities, prices and phone numbers.
+ * Calls onKey with "0"-"9", "." (or "+" when pointKey is "+"), "back" or "clear". */
 export function Keypad({
   onKey,
   allowDecimal = false,
   disabled = false,
+  pointKey = ".",
 }: {
   onKey: (key: string) => void;
   allowDecimal?: boolean;
   disabled?: boolean;
+  pointKey?: "." | "+";
 }) {
   const t = useT();
   const keyClass =
@@ -28,11 +31,11 @@ export function Keypad({
       <button
         type="button"
         className={keyClass}
-        disabled={disabled || !allowDecimal}
-        onClick={() => onKey(".")}
-        aria-label={t("Decimal point")}
+        disabled={disabled || (pointKey === "." && !allowDecimal)}
+        onClick={() => onKey(pointKey)}
+        aria-label={t(pointKey === "+" ? "Plus sign" : "Decimal point")}
       >
-        .
+        {pointKey}
       </button>
       <button type="button" className={keyClass} disabled={disabled} onClick={() => onKey("0")}>
         0

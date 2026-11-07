@@ -14,6 +14,15 @@ export function normalizePhone(value: string): string {
   return trimmed.startsWith("+") ? `+${digits}` : digits;
 }
 
+/** Applies a number-pad key to a phone number being typed. "+" is only allowed first. */
+export function applyPhoneKey(current: string, key: string): string {
+  if (key === "clear") return "";
+  if (key === "back") return current.slice(0, -1);
+  if (key === "+") return current === "" ? "+" : current;
+  if (!/^\d$/.test(key)) return current;
+  return normalizePhone(current).replace("+", "").length >= 15 ? current : current + key;
+}
+
 export function isValidPhone(value: string): boolean {
   const digits = normalizePhone(value).replace("+", "");
   return digits.length >= 6 && digits.length <= 15;

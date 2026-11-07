@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { getT } from "@/server/i18n";
 
-export type TileTone = "default" | "primary" | "money" | "danger" | "dark";
+export type TileTone = "default" | "primary" | "money" | "danger" | "dark" | "walkin";
 
 export type TileDef = {
   href: string;
@@ -18,6 +18,7 @@ const TONES: Record<TileTone, string> = {
   money: "bg-amber-400 text-(--ink) border-amber-500 hover:bg-amber-300",
   danger: "bg-red-600 text-white border-red-700 hover:bg-red-700",
   dark: "bg-(--ink) text-white border-(--ink) hover:bg-black",
+  walkin: "bg-(--walkin) text-white border-(--walkin) hover:bg-(--walkin-dark)",
 };
 
 /** Big launcher tile: label top-left, icon bottom-right (as in the till software). */

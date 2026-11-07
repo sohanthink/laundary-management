@@ -1,8 +1,9 @@
 "use client";
 
-import { Banknote, Minus, NotebookPen, Plus, Search, Trash2, X } from "lucide-react";
+import { Banknote, Minus, NotebookPen, Phone, Plus, Trash2, X } from "lucide-react";
 import { startTransition, useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useT } from "@/components/i18n-provider";
+import { BAR_BUTTON } from "@/components/pos/bar";
 import { clearDraft, loadDraft, useSaveDraft } from "@/components/pos/draft";
 import { applyKey, Keypad } from "@/components/pos/keypad";
 import { ProductTile } from "@/components/pos/product-tile";
@@ -10,7 +11,7 @@ import { Sheet } from "@/components/pos/sheet";
 import { FormMessage } from "@/components/ui/action-form";
 import { Button } from "@/components/ui/button";
 import { inputClass } from "@/components/ui/field";
-import { counterUnitPrice, isValidPhone, type CounterServiceType } from "@/server/counter";
+import { applyPhoneKey, counterUnitPrice, isValidPhone, type CounterServiceType } from "@/server/counter";
 import type { ActionState } from "@/server/forms";
 import { formatMoney, isMoneyInput, toCents } from "@/server/money";
 import { createCounterSale, lookupCounterCustomer } from "@/server/modules/counter/actions";
@@ -53,6 +54,13 @@ export function CounterPos({ items, initialPhone }: { items: Item[]; initialPhon
   const [method, setMethod] = useState<(typeof METHODS)[number]>(draft?.method ?? "CASH");
   const [note, setNote] = useState(draft?.note ?? "");
   const phoneRef = useRef<HTMLInputElement>(null);
+  const [lookupTick, setLookupTick] = useState(0);
+  // True while the name was filled in by a phone match (not typed by hand).
+  const nameFromLookup = useRef(false);
+  // While true, the number pad types the phone number instead of a quantity.
+  const [phoneOnPad, setPhoneOnPad] = useState(() => !(initialPhone ?? draft?.phone));
+  // On a tablet the phone is typed on the number pad, so the on-screen keyboard stays closed.
+  const [touch] = useState(() => window.matchMedia("(pointer: coarse)").matches);
 
   // An order goes to its receipt page; a payment-only entry stays here and refreshes the due.
   const [state, action, pending] = useActionState(async (prev: ActionState, formData: FormData) => {
@@ -60,7 +68,7 @@ export function CounterPos({ items, initialPhone }: { items: Item[]; initialPhon
     if (result?.ok) {
       setPayment("");
       setNote("");
-      lookup(String(formData.get("phone") ?? ""));
+      lookup();
     }
     return result;
   }, undefined);
@@ -80,25 +88,48 @@ export function CounterPos({ items, initialPhone }: { items: Item[]; initialPhon
 
   useSaveDraft(DRAFT_KEY, { lines, phone, name, note, payment, method } satisfies CounterDraft, (pieces > 0 || paid > 0) && !pending, state);
 
-  function lookup(value = phone) {
-    if (!isValidPhone(value)) {
-      setCustomer(null);
-      return;
-    }
-    startLookup(async () => {
-      const result = await lookupCounterCustomer(value);
-      setCustomer(result);
-      if (result.found && result.name && !name) setName(result.name);
-    });
+  function lookup() {
+    setLookupTick((n) => n + 1);
   }
 
-  // Opening the screen with a phone (from the customer list or a saved draft) looks it up once.
-  const looked = useRef(false);
+  // Looks the customer up as soon as the number is long enough (also when the screen opens with one).
+  // A match fills in the saved name; no match clears a name that an earlier match filled in.
   useEffect(() => {
-    if (looked.current || !isValidPhone(phone)) return;
-    looked.current = true;
-    startLookup(async () => setCustomer(await lookupCounterCustomer(phone)));
-  }, [phone]);
+    if (!isValidPhone(phone)) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      startLookup(async () => {
+        const result = await lookupCounterCustomer(phone);
+        if (cancelled) return;
+        setCustomer(result);
+        if (result.found && result.name) {
+          setName(result.name);
+          nameFromLookup.current = true;
+        } else if (nameFromLookup.current) {
+          setName("");
+          nameFromLookup.current = false;
+        }
+      });
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [phone, lookupTick]);
+
+  function changePhone(next: string | ((current: string) => string)) {
+    setPhone(next);
+    setCustomer(null);
+    if (nameFromLookup.current) {
+      setName("");
+      nameFromLookup.current = false;
+    }
+  }
+
+  function typePhoneOnPad() {
+    setPhoneOnPad(true);
+    setSelected(null);
+  }
 
   function countOf(key: string) {
     return lines.find((l) => lineKey(l) === key)?.quantity ?? 0;
@@ -118,10 +149,15 @@ export function CounterPos({ items, initialPhone }: { items: Item[]; initialPhon
     const key = lineKey({ itemId, service });
     setCount(key, countOf(key) + 1);
     setSelected(key);
+    setPhoneOnPad(false);
     setBuffer("");
   }
 
   function onKey(key: string) {
+    if (phoneOnPad) {
+      changePhone((current) => applyPhoneKey(current, key));
+      return;
+    }
     if (!selected) return;
     const next = applyKey(buffer, key, false);
     setBuffer(next);
@@ -136,13 +172,16 @@ export function CounterPos({ items, initialPhone }: { items: Item[]; initialPhon
     setNote("");
     setPhone("");
     setName("");
+    nameFromLookup.current = false;
     setCustomer(null);
     clearDraft(DRAFT_KEY);
+    typePhoneOnPad();
     phoneRef.current?.focus();
   }
 
   function confirm() {
     if (!isValidPhone(phone)) {
+      typePhoneOnPad();
       phoneRef.current?.focus();
       return;
     }
@@ -182,39 +221,43 @@ export function CounterPos({ items, initialPhone }: { items: Item[]; initialPhon
         <span className="text-sm text-(--muted)">{t("Iron only is half price.")}</span>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(260px,320px)_1fr_250px]">
-        <section className="order-2 flex flex-col rounded-3xl border border-(--line) bg-white lg:order-1" aria-label={t("Counter list")}>
+      <div className="grid gap-4 md:grid-cols-[200px_1fr_184px] lg:grid-cols-[minmax(240px,300px)_1fr_220px] xl:grid-cols-[minmax(260px,320px)_1fr_250px]">
+        <section className="order-2 flex flex-col rounded-3xl border border-(--line) bg-white md:order-1" aria-label={t("Counter list")}>
           <div className="space-y-2 border-b border-(--line) p-3">
-            <div className="flex gap-2">
+            <div className="relative">
+              <Phone className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-(--muted)" aria-hidden />
               <input
                 ref={phoneRef}
                 value={phone}
-                onChange={(e) => {
-                  setPhone(e.target.value);
-                  setCustomer(null);
-                }}
+                onChange={(e) => changePhone(e.target.value)}
+                onFocus={typePhoneOnPad}
+                onClick={typePhoneOnPad}
                 onKeyDown={(e) => e.key === "Enter" && lookup()}
-                onBlur={() => lookup()}
-                inputMode="tel"
+                inputMode={touch ? "none" : "tel"}
                 autoComplete="off"
                 placeholder={t("Customer phone")}
                 aria-label={t("Customer phone")}
-                className={`${inputClass} h-14 text-lg`}
+                className={`${inputClass} h-14 pl-11 text-lg tabular-nums ${phoneOnPad ? "border-(--teal)! ring-4 ring-(--teal-soft)" : ""}`}
               />
-              <Button size="lg" variant="secondary" className="px-4" onClick={() => lookup()} disabled={!phoneOk || looking} aria-label={t("Find customer")}>
-                <Search className="size-5" aria-hidden />
-              </Button>
             </div>
-            {customer && (
-              <p className={`rounded-xl px-3 py-2 text-sm font-medium ${customer.found ? "bg-(--paper)" : "bg-sky-50 text-sky-900"}`}>
-                {customer.found
-                  ? `${t("Returning customer")} · ${t("Due")} ${formatMoney(customer.due)}`
-                  : t("New customer: saved when you confirm.")}
-              </p>
+            {looking ? (
+              <p className="rounded-xl bg-(--paper) px-3 py-2 text-sm text-(--muted)">{t("Searching...")}</p>
+            ) : (
+              customer && (
+                <p className={`rounded-xl px-3 py-2 text-sm font-medium ${customer.found ? "bg-(--paper)" : "bg-sky-50 text-sky-900"}`}>
+                  {customer.found
+                    ? `${t("Returning customer")} · ${t("Due")} ${formatMoney(customer.due)}`
+                    : t("New customer: saved when you confirm.")}
+                </p>
+              )
             )}
             <input
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onFocus={() => setPhoneOnPad(false)}
+              onChange={(e) => {
+                setName(e.target.value);
+                nameFromLookup.current = false;
+              }}
               placeholder={t("Name (optional)")}
               aria-label={t("Name (optional)")}
               className={`${inputClass} h-12`}
@@ -231,6 +274,7 @@ export function CounterPos({ items, initialPhone }: { items: Item[]; initialPhon
                     type="button"
                     onClick={() => {
                       setSelected(key);
+                      setPhoneOnPad(false);
                       setBuffer("");
                     }}
                     className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left ${selected === key ? "bg-(--teal-soft)" : "hover:bg-(--paper)"}`}
@@ -256,7 +300,7 @@ export function CounterPos({ items, initialPhone }: { items: Item[]; initialPhon
           </div>
         </section>
 
-        <section className="order-1 min-w-0 lg:order-2">
+        <section className="order-1 min-w-0 md:order-2">
           {items.length === 0 ? (
             <p className="rounded-2xl border border-dashed border-(--line) bg-white p-8 text-center text-(--muted)">
               {t("No counter items yet. Add them in Setup > Counter prices.")}
@@ -280,9 +324,13 @@ export function CounterPos({ items, initialPhone }: { items: Item[]; initialPhon
           )}
         </section>
 
-        <section className="order-2 space-y-3 self-start rounded-3xl border border-(--line) bg-white p-3 lg:sticky lg:top-24 lg:order-3">
+        <section className="order-2 space-y-3 self-start rounded-3xl border border-(--line) bg-white p-3 md:sticky md:top-24 md:order-3">
           <p className="min-h-10 text-sm leading-snug text-(--muted)">
-            {selectedLine ? (
+            {phoneOnPad ? (
+              <>
+                {t("Typing")}: <span className="font-semibold text-(--ink)">{t("Customer phone")}</span>
+              </>
+            ) : selectedLine ? (
               <>
                 {t("Selected")}: <span className="font-semibold text-(--ink)">{selectedLine.item.name}</span> ({t(SERVICE_TEXT[selectedLine.service])})
               </>
@@ -312,24 +360,24 @@ export function CounterPos({ items, initialPhone }: { items: Item[]; initialPhon
             </Button>
           </div>
           <FormMessage state={state} />
-          <Keypad onKey={onKey} disabled={!selected} />
+          <Keypad onKey={onKey} disabled={!selected && !phoneOnPad} pointKey={phoneOnPad ? "+" : "."} />
         </section>
       </div>
 
       <div className="no-print fixed inset-x-0 bottom-0 z-20 border-t border-(--line) bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1400px] flex-wrap items-center gap-2 px-4 py-3 sm:px-6">
-          <Button size="lg" variant="secondary" onClick={() => setSheet("payment")}>
+          <Button size="lg" variant="secondary" className={BAR_BUTTON} onClick={() => setSheet("payment")}>
             <Banknote className="size-5" aria-hidden />
             {t("Payment")}
             {paid > 0 && <span className="tabular-nums">{formatMoney(paid)}</span>}
           </Button>
-          <Button size="lg" variant="secondary" onClick={() => setSheet("note")}>
+          <Button size="lg" variant="secondary" className={BAR_BUTTON} onClick={() => setSheet("note")}>
             <NotebookPen className="size-5" aria-hidden />
             {t("Note")}
           </Button>
           {!phoneOk && (pieces > 0 || paid > 0) && <span className="text-sm font-medium text-red-600">{t("Type the customer's phone number")}</span>}
           <div className="ml-auto flex gap-2">
-            <Button size="lg" variant="danger" onClick={clearAll} disabled={pending}>
+            <Button size="lg" variant="danger" className={BAR_BUTTON} onClick={clearAll} disabled={pending}>
               <X className="size-5" aria-hidden />
               {t("Cancel")}
             </Button>

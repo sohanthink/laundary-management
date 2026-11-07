@@ -3,7 +3,7 @@ import { requirePermission } from "@/server/auth/dal";
 import { db } from "@/server/db";
 import { startOfMonth } from "@/server/dates";
 import { getDueByHotel } from "@/server/modules/ledger/core";
-import { counterTotals } from "@/server/modules/counter/queries";
+import { counterTotals, getCounterDues } from "@/server/modules/counter/queries";
 import { getItemTracking, getProductTracking } from "@/server/modules/tracking/core";
 import { profitSummary } from "@/server/profit";
 
@@ -40,14 +40,21 @@ export async function getMonthMoney() {
 
 export async function getHomeStats() {
   await requirePermission("admin:access");
-  const [dues, productTracks, itemTracks, unpaidInvoices] = await Promise.all([
+  const [dues, counterDues, productTracks, itemTracks, unpaidInvoices] = await Promise.all([
     getDueByHotel(db),
+    getCounterDues(db),
     getProductTracking(db),
     getItemTracking(db),
     db.invoice.count({ where: { status: "UNPAID" } }),
   ]);
+  const balances = [...dues.values()];
+  const walkInOwing = [...counterDues.values()].filter((d) => d > 0);
   return {
-    totalDue: [...dues.values()].reduce((s, d) => s + d, 0),
+    walkInDue: walkInOwing.reduce((s, d) => s + d, 0),
+    walkInOwing: walkInOwing.length,
+    // What hotels still owe, and (separately) what some hotels paid in advance.
+    totalDue: balances.filter((d) => d > 0).reduce((s, d) => s + d, 0),
+    paidInAdvance: -balances.filter((d) => d < 0).reduce((s, d) => s + d, 0),
     atHotels: productTracks.reduce((s, t) => s + t.atHotel, 0),
     itemsWithUs: itemTracks.reduce((s, t) => s + t.withUs, 0),
     unpaidInvoices,

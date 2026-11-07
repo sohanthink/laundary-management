@@ -4,6 +4,7 @@ import { Building2, CheckCheck, Minus, NotebookPen, Plus, Trash2, X } from "luci
 import Link from "next/link";
 import { startTransition, useActionState, useState } from "react";
 import { useT } from "@/components/i18n-provider";
+import { BAR_BUTTON } from "@/components/pos/bar";
 import { clearDraft, draftKey, loadDraft, useSaveDraft } from "@/components/pos/draft";
 import { applyKey, Keypad } from "@/components/pos/keypad";
 import { ModeToggle } from "@/components/pos/mode-toggle";
@@ -212,8 +213,8 @@ export function CollectPos({
           </div>
         )}
       </div>
-      <div className="grid gap-4 lg:grid-cols-[minmax(260px,320px)_1fr_250px]">
-        <section className="order-2 flex flex-col rounded-3xl border border-(--line) bg-white lg:order-1" aria-label={t("Collect list")}>
+      <div className="grid gap-4 md:grid-cols-[200px_1fr_184px] lg:grid-cols-[minmax(240px,300px)_1fr_220px] xl:grid-cols-[minmax(260px,320px)_1fr_250px]">
+        <section className="order-2 flex flex-col rounded-3xl border border-(--line) bg-white md:order-1" aria-label={t("Collect list")}>
           <div className="border-b border-(--line) px-4 py-3">
             <p className="text-xs uppercase tracking-wider text-(--muted)">{t("Collect from")}</p>
             <p className="text-lg font-semibold">{hotel.name}</p>
@@ -265,7 +266,7 @@ export function CollectPos({
           </div>
         </section>
 
-        <section className="order-1 min-w-0 space-y-3 lg:order-2">
+        <section className="order-1 min-w-0 space-y-3 md:order-2">
           <div className="flex flex-wrap gap-2" role="tablist">
             {modeTabs
               .filter((m) => m.show)
@@ -334,7 +335,7 @@ export function CollectPos({
           </section>
 
         {/* Number pad column */}
-        <section className="order-2 space-y-3 self-start rounded-3xl border border-(--line) bg-white p-3 lg:sticky lg:top-24 lg:order-3">
+        <section className="order-2 space-y-3 self-start rounded-3xl border border-(--line) bg-white p-3 md:sticky md:top-24 md:order-3">
             <div className="space-y-3">
               <p className="min-h-10 text-sm leading-snug text-(--muted)">
                 {selected ? (
@@ -374,24 +375,24 @@ export function CollectPos({
 
       <div className="no-print fixed inset-x-0 bottom-0 z-20 border-t border-(--line) bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1400px] flex-wrap items-center gap-2 px-4 py-3 sm:px-6">
-          <Link href="/admin/collect" className={buttonClass("secondary", "lg")}>
+          <Link href="/admin/collect" className={`${buttonClass("secondary", "lg")} ${BAR_BUTTON}`}>
             <Building2 className="size-5" aria-hidden />
             {t("Hotel")}
           </Link>
           {rows.length > 0 && (
-            <Button size="lg" variant="secondary" onClick={allBack}>
+            <Button size="lg" variant="secondary" className={BAR_BUTTON} onClick={allBack}>
               <CheckCheck className="size-5" aria-hidden />
               {t("All back")}
             </Button>
           )}
-          <Button size="lg" variant="secondary" onClick={() => setNoteOpen(true)}>
+          <Button size="lg" variant="secondary" className={BAR_BUTTON} onClick={() => setNoteOpen(true)}>
             <NotebookPen className="size-5" aria-hidden />
             {t("Note")}
           </Button>
           <div className="ml-auto flex gap-2">
             <Button
               size="lg"
-              variant="danger"
+              variant="danger" className={BAR_BUTTON}
               disabled={pending}
               onClick={() => {
                 if (backPieces + itemPieces === 0 || window.confirm(t("Clear the whole list?"))) reset();
