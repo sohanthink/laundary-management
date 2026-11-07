@@ -1,13 +1,20 @@
 import Link from "next/link";
+import { DateRangeForm, quickRanges } from "@/components/date-range-form";
 import { LinkButton } from "@/components/ui/link-button";
 import { Badge, Card, Empty, PageHeader, Stat, Table, Td, Th } from "@/components/ui/layout";
-import { formatDateTime } from "@/server/dates";
+import { endOfLocalDay, formatDateTime, rangeFromParams, startOfLocalDay } from "@/server/dates";
 import { getT } from "@/server/i18n";
 import { formatMoney } from "@/server/money";
-import { getDashboard } from "@/server/modules/dashboard/queries";
+import { getDashboard, getMoneySummary } from "@/server/modules/dashboard/queries";
 
-export default async function AdminDashboardPage() {
-  const d = await getDashboard();
+export default async function AdminDashboardPage({ searchParams }: PageProps<"/admin/overview">) {
+  const sp = await searchParams;
+  const thisMonth = quickRanges().find((r) => r.key === "month")!;
+  const range = rangeFromParams(sp.from ?? thisMonth.from, sp.to ?? thisMonth.to);
+  const [d, money] = await Promise.all([
+    getDashboard(),
+    getMoneySummary(startOfLocalDay(range.from), endOfLocalDay(range.to)),
+  ]);
   const t = await getT();
 
   return (
@@ -26,16 +33,69 @@ export default async function AdminDashboardPage() {
         }
       />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <Card title="Earnings and profit" className="mb-6">
+        <div className="mb-4">
+          <DateRangeForm from={range.from} to={range.to} />
+        </div>
+        <div className="mb-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Stat label="Hotels" value={formatMoney(money.hotelEarned)} hint={`${t("Received")} ${formatMoney(money.hotelReceived)}`} />
+          <Stat label="Walk-in customers" value={formatMoney(money.walkInEarned)} hint={`${t("Received")} ${formatMoney(money.walkInReceived)}`} />
+          <Stat label="Expenses" value={formatMoney(money.expenses)} tone="warn" />
+          <Stat
+            label="Estimated profit"
+            value={formatMoney(money.estimatedProfit)}
+            hint={`${t("Cash profit")} ${formatMoney(money.cashProfit)}`}
+            tone={money.estimatedProfit >= 0 ? "good" : "warn"}
+          />
+        </div>
+        <Table>
+          <thead>
+            <tr>
+              <Th />
+              <Th align="right">Earned (charged)</Th>
+              <Th align="right">Received (cash in)</Th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <Td>{t("Hotels")}</Td>
+              <Td align="right">{formatMoney(money.hotelEarned)}</Td>
+              <Td align="right">{formatMoney(money.hotelReceived)}</Td>
+            </tr>
+            <tr>
+              <Td>{t("Walk-in customers")}</Td>
+              <Td align="right">{formatMoney(money.walkInEarned)}</Td>
+              <Td align="right">{formatMoney(money.walkInReceived)}</Td>
+            </tr>
+            <tr className="font-semibold">
+              <Td>{t("Revenue")}</Td>
+              <Td align="right">{formatMoney(money.revenue)}</Td>
+              <Td align="right">{formatMoney(money.received)}</Td>
+            </tr>
+            <tr>
+              <Td>{t("Expenses")}</Td>
+              <Td align="right">−{formatMoney(money.expenses)}</Td>
+              <Td align="right">−{formatMoney(money.expenses)}</Td>
+            </tr>
+            <tr className="text-base font-bold">
+              <Td>{t("Profit")}</Td>
+              <Td align="right" className={money.estimatedProfit >= 0 ? "text-emerald-700" : "text-red-600"}>
+                {formatMoney(money.estimatedProfit)}
+              </Td>
+              <Td align="right" className={money.cashProfit >= 0 ? "text-emerald-700" : "text-red-600"}>
+                {formatMoney(money.cashProfit)}
+              </Td>
+            </tr>
+          </tbody>
+        </Table>
+        <p className="mt-3 text-xs text-(--muted)">
+          {t("Earned counts everything charged in the period, paid or not. Received counts only money that came in. The difference is unpaid dues.")}
+        </p>
+      </Card>
+
+      <div className="mb-6 grid gap-4 sm:grid-cols-2">
         <Stat label="Total due (all hotels)" value={formatMoney(d.totalDue)} tone={d.totalDue > 0 ? "warn" : "good"} />
         <Stat label="Sent this month" value={formatMoney(d.month.sendsTotal)} hint={`${d.month.sendsCount} ${t(d.month.sendsCount === 1 ? "send" : "sends")}`} />
-        <Stat label="Payments this month" value={formatMoney(d.month.income)} tone="good" />
-        <Stat
-          label="Profit estimate this month"
-          value={formatMoney(d.month.net)}
-          hint={`${t("Expenses")} ${formatMoney(d.month.expenses)}`}
-          tone={d.month.net >= 0 ? "good" : "warn"}
-        />
       </div>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">

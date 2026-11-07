@@ -5,6 +5,38 @@ import { startOfMonth } from "@/server/dates";
 import { getDueByHotel } from "@/server/modules/ledger/core";
 import { counterTotals } from "@/server/modules/counter/queries";
 import { getItemTracking, getProductTracking } from "@/server/modules/tracking/core";
+import { profitSummary } from "@/server/profit";
+
+/**
+ * Hotel + walk-in money for a period. Hotel "earned" = charges plus adjustments
+ * (credits, voids, special discounts); walk-in "earned" = counter orders.
+ */
+export async function getMoneySummary(from: Date, to: Date) {
+  const range = { gte: from, lt: to };
+  const [hotelLedger, counter, expenses] = await Promise.all([
+    db.ledgerEntry.groupBy({
+      by: ["type"],
+      where: { status: "ACTIVE", date: range },
+      _sum: { amount: true },
+    }),
+    counterTotals(db, from, to),
+    db.expense.aggregate({ where: { paidAt: range }, _sum: { amount: true } }),
+  ]);
+  const sum = (type: "CHARGE" | "PAYMENT" | "ADJUSTMENT") =>
+    hotelLedger.find((r) => r.type === type)?._sum.amount ?? 0;
+  return profitSummary({
+    hotelEarned: sum("CHARGE") + sum("ADJUSTMENT"),
+    walkInEarned: counter.salesTotal,
+    hotelReceived: sum("PAYMENT"),
+    walkInReceived: counter.paymentsTotal,
+    expenses: expenses._sum.amount ?? 0,
+  });
+}
+
+export async function getMonthMoney() {
+  await requirePermission("admin:access");
+  return getMoneySummary(startOfMonth(), new Date(Date.now() + 1000));
+}
 
 export async function getHomeStats() {
   await requirePermission("admin:access");
